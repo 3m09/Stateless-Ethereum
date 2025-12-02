@@ -1,5 +1,6 @@
 from registry.trees import BaseTree, register_tree
-from registry.trees import TreeNode 
+from registry.trees import TreeNode
+from commitment_scheme import commit
 import math
 
 @register_tree("verkle")
@@ -30,14 +31,29 @@ class VerkleTree(BaseTree):
         path = self._key_to_path(key)
 
         node = self.root
+        stack = [node]
+
         for idx in path:
             if node.children[idx] is None:
                 node.children[idx] = TreeNode(self.width)
             node = node.children[idx]
+            stack.append(node)
 
-        # Store leaf data
-        node.key = key
         node.value = value
+
+        while stack:
+            current = stack.pop()
+
+            child_values = []
+            for child in current.children:
+                if child is None:
+                    child_values.append(None)
+                else:
+                    child_values.append(child.value)
+
+            current.value = commit(child_values)
+
+
 
     def get_proof_tree(self, key):
         if not isinstance(key, (bytes, bytearray)):

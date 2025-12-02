@@ -2,8 +2,7 @@ class TreeNode:
     def __init__(self, width):
         self.width = width                       
         self.children = [None] * width           
-        self.value = None                        
-        self.key = None                          
+        self.value = None                                                  
 
 class BaseTree:
     def __init__(self, width):
