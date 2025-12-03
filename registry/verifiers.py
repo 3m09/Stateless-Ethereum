@@ -1,5 +1,5 @@
 class BaseVerifier:
-    def verify_proof(self, proof):
+    def verify_proof(self, values, root, proof, keys, setup=None):
         raise NotImplementedError
 
 VERIFIER_REGISTRY = {}

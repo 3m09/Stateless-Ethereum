@@ -6,6 +6,10 @@ import math
 @register_tree("verkle")
 class VerkleTree(BaseTree):
 
+    def __init__(self, width, setup_object):
+        super().__init__(width)
+        self.setup_object = setup_object
+
     def _key_to_path(self, key: bytes):
         step_bits = int(math.log2(self.width))
 
@@ -47,14 +51,27 @@ class VerkleTree(BaseTree):
             child_values = []
             for child in current.children:
                 if child is None:
-                    child_values.append(None)
+                    child_values.append(0)
                 else:
                     child_values.append(child.value)
 
-            current.value = commit(child_values)
+            current.value = commit(child_values, self.setup_object)
 
+    def get(self, key):
+        if not isinstance(key, (bytes, bytearray)):
+            raise TypeError("Key must be bytes or bytearray")
 
+        node = self.root
+        path = self._key_to_path(key)
 
+        for idx in path:
+            if node.children[idx] is None:
+                return None   
+
+            node = node.children[idx]
+
+        return node.value
+    
     def get_proof_tree(self, key):
         if not isinstance(key, (bytes, bytearray)):
             raise TypeError("Key must be bytes or bytearray")
@@ -72,5 +89,5 @@ class VerkleTree(BaseTree):
             node = node.children[idx]
 
         # append leaf node
-        proof.append(node)
+        #proof.append(node)
         return proof

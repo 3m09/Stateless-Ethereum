@@ -1,5 +1,5 @@
 class BaseProver:
-    def generate_proof(self, data):
+    def generate_proof(self, tree, keys, setup=None):
         raise NotImplementedError
 
 PROVER_REGISTRY = {}

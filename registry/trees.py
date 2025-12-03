@@ -15,6 +15,9 @@ class BaseTree:
     def get_proof_tree(self, key):
         raise NotImplementedError
     
+    def get(self, key):
+        raise NotImplementedError
+    
 
 TREE_REGISTRY = {}
 
