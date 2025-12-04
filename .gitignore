@@ -1,1 +1,4 @@
 eth_research/** 
+__pycache__/** 
+venv/** 
+*.pyc

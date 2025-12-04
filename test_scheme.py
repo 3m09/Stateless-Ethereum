@@ -3,7 +3,7 @@ import json
 from registry.provers import PROVER_REGISTRY
 from registry.verifiers import VERIFIER_REGISTRY
 from registry.trees import TREE_REGISTRY
-from registry.setup import SETUP_REGISTRY
+from registry.setup import SETUP_REGISTRY 
 
 def generate_proof(method, tree, keys, setup=None):
     prover_class = PROVER_REGISTRY[method]
@@ -20,9 +20,9 @@ def generate_tree(method, width, setup=None):
     tree = tree_class(width, setup)
     return tree
 
-def generate_setup(method, secret):
+def generate_setup(method, secret, width=None):
     setup_class = SETUP_REGISTRY[method]
-    setup = setup_class(secret)
+    setup = setup_class(secret, width)
     return setup
 
 def test():
@@ -50,7 +50,7 @@ def test():
     
     a = time.time()
     assert verify_proof("verkle", (commitments, w), data_tree.root.value, coords, [data[c] for c in coords], setup_object)
-    
+
     print("Verified proof in %.3f seconds" % (time.time() - a))
 
 if __name__ == '__main__':

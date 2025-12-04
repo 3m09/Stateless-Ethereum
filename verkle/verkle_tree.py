@@ -79,7 +79,6 @@ class VerkleTree(BaseTree):
         proof = []
         node = self.root
         path = self._key_to_path(key)
-
         for idx in path:
             proof.append(node)
 
