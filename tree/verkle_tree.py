@@ -1,14 +1,15 @@
 from registry.trees import BaseTree, register_tree
 from registry.trees import TreeNode
-from commitment_scheme import commit
+from verkle.commitment_scheme import commit
+from verkle.hash_scheme import hash_point_to_field
 import math
 
 @register_tree("verkle")
 class VerkleTree(BaseTree):
 
     def __init__(self, width, setup_object):
-        super().__init__(width)
-        self.setup_object = setup_object
+        super().__init__(width, setup_object)
+        #self.setup_object = setup_object
 
     def _key_to_path(self, key: bytes):
         step_bits = int(math.log2(self.width))
@@ -45,6 +46,9 @@ class VerkleTree(BaseTree):
 
         node.value = value
 
+        # popping the leaf node to avoid recomputing its commitment
+        stack.pop()
+
         while stack:
             current = stack.pop()
 
@@ -54,8 +58,10 @@ class VerkleTree(BaseTree):
                     child_values.append(0)
                 else:
                     child_values.append(child.value)
-
-            current.value = commit(child_values, self.setup_object)
+            
+            # print("Committing at level with child values:", child_values)
+            current.commitment_to_children = commit(child_values, self.setup_object)
+            current.value = hash_point_to_field(current.commitment_to_children, self.setup_object.MODULUS)
 
     def get(self, key):
         if not isinstance(key, (bytes, bytearray)):
@@ -79,14 +85,14 @@ class VerkleTree(BaseTree):
         proof = []
         node = self.root
         path = self._key_to_path(key)
-        for idx in path:
-            proof.append(node)
-
+        for i, idx in enumerate(path):
             if node.children[idx] is None:
                 return None   
 
             node = node.children[idx]
 
-        # append leaf node
-        #proof.append(node)
+            if i < len(path) - 1:
+                proof.append(node.commitment_to_children)
+
+            # excluding the root and leaf commitments
         return proof

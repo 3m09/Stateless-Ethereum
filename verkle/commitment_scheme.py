@@ -1,7 +1,7 @@
 from py_ecc import optimized_bls12_381 as b
-from utils.fft import fft
-from utils.multicombs import lincomb
-from utils.poly_utils import PrimeField
+from .utils.fft import fft
+from .utils.multicombs import lincomb
+from .utils.poly_utils import PrimeField
 
 def commit(values, setup_object):
     MODULUS = setup_object.MODULUS

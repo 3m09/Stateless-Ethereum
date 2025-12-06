@@ -1,6 +1,6 @@
 from py_ecc import optimized_bls12_381 as b
-from utils.fft import fft
-from utils.poly_utils import PrimeField
+from verkle.utils.fft import fft
+from verkle.utils.poly_utils import PrimeField
 from registry.setup import register_setup, BaseSetup
 
 @register_setup("verkle_kzg")

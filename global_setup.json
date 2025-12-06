@@ -1,0 +1,15 @@
+{
+    "TREE_TYPE": "verkle",
+    "PROVER_TYPE": "verkle",
+    "VERIFIER_TYPE": "verkle",
+    "SETUP_TYPE": "verkle_kzg",
+    "KEY_LENGTH": 32,
+    "VALUE_LENGTH": 32,
+    "WIDTH": 16,
+    "SECRET": 1927409816240961209460912649124,
+    "KEYS_TO_PROVE": [
+        "0x02d9",
+        "0x01f9"
+    ]
+    
+}
