@@ -5,11 +5,6 @@ from registry.verifiers import VERIFIER_REGISTRY
 from registry.trees import TREE_REGISTRY
 from registry.setup import SETUP_REGISTRY
 
-# WIDTH = 16
-# KEY_LENGTH = 2 # in bytes
-# VALUE_LENGTH = 25 # in bytes
-# SECRET = 1927409816240961209460912649124
-
 def generate_proof(method, tree, keys, setup=None):
     prover_class = PROVER_REGISTRY[method]
     prover = prover_class(setup)
@@ -74,15 +69,14 @@ def test():
         # convert key string -> bytes 
         key_bytes = hex_to_bytes(k, KEY_LENGTH)
 
-        # val_bytes = hex_to_bytes(v, VALUE_LENGTH)
-        # v = bytes_to_int(val_bytes)
+        val_bytes = hex_to_bytes(v, VALUE_LENGTH)
+        v = bytes_to_int(val_bytes)
 
         # insert into tree
-        data_tree.insert(key_bytes, int(v, 16))
-
+        #print("Inserting key:", k, "value:", int(v, 16))
+        data_tree.insert(key_bytes, v)
     print("Inserted data into tree")
 
-    #keys_to_prove = ["0x02d9", "0x01f9"]
     key_bytes = [hex_to_bytes(k, KEY_LENGTH) for k in KEYS_TO_PROVE]
     paths_to_prove = [data_tree._key_to_path(k) for k in key_bytes]   
     a = time.time()
@@ -95,7 +89,7 @@ def test():
     
     a = time.time()
     
-    assert verify_proof(VERIFIER_TYPE, (commitments, w), data_tree.root.commitment_to_children, key_bytes, [data[k] for k in KEYS_TO_PROVE], paths_to_prove, setup_object)
+    assert verify_proof(VERIFIER_TYPE, (commitments, w), data_tree.root.commitment_to_children, key_bytes, [int(data[k], 16) for k in KEYS_TO_PROVE], paths_to_prove, setup_object)
 
     print("Verified proof in %.3f seconds" % (time.time() - a))
 
