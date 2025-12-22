@@ -6,7 +6,8 @@ class TreeNode:
         self.width = width                       
         self.children = [None] * width           
         self.value = None  
-        self.commitment_to_children = None                                              
+        self.commitment_to_children = None
+        self.type = 'non_leaf'                                           
 
 class BaseTree:
     def __init__(self, width, setup_object=None):

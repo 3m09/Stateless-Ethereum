@@ -1,12 +1,12 @@
-# tree/mpt_tree.py
-
 import rlp
+import os
 
 from registry.trees import BaseTree, register_tree
-from registry.trees import TreeNode
+#from registry.trees import TreeNode
 from merkle.nibble_path import NibblePath
 from merkle.node import Node
 from merkle.hash import keccak_hash
+import plyvel
 
 
 @register_tree("merkle")
@@ -30,15 +30,18 @@ class MerklePatriciaTrie(BaseTree):
 
         super().__init__(width=width, setup_object=setup_object)
 
-        # Underlying node storage: hash -> encoded node
-        self._storage = storage if storage is not None else {}
+        # self._storage is currently unused because of plyvel DB usage
+        # # Underlying node storage: hash -> encoded node
+        # self._storage = storage if storage is not None else {}
+
+        self.db = plyvel.DB('./merkle/merkle_state_db', create_if_missing=True)
 
         # Secure mode means: hash keys with keccak256 before turning into nibbles.
         self._secure = secure
 
         # MPT root reference (bytes or None).
         # This is the "real" root of the trie; we mirror it in self.root.value.
-        self._root_ref = None
+        self._root_ref = open('./roots/merkle_root_ref.bin', 'rb').read() if os.path.exists('./roots/merkle_root_ref.bin') else None
         self.root.value = self._root_ref
 
     # -------------------------------------------------------------------------
@@ -67,6 +70,8 @@ class MerklePatriciaTrie(BaseTree):
         new_root_ref = self._update(self._root_ref, path, encoded_value)
 
         self._root_ref = new_root_ref
+        with open('./roots/merkle_root_ref.bin', 'wb') as f:
+            f.write(self._root_ref)
         self.root.value = self._root_ref  # mirror into BaseTree root node
 
     def get(self, key: bytes) -> bytes:
@@ -95,13 +100,6 @@ class MerklePatriciaTrie(BaseTree):
             raise KeyError("Key not found (no data at terminal node)")
 
         return node.data
-
-    # def get_proof_tree(self, key: bytes):
-    #     """
-    #     Not implemented yet. Later this will return a proof structure
-    #     (e.g., list of nodes along the path) suitable for zk circuits.
-    #     """
-    #     raise NotImplementedError
 
     def get_proof_tree(self, key: bytes):
         """
@@ -134,7 +132,9 @@ class MerklePatriciaTrie(BaseTree):
             """
             # Get the encoded form of this node (what's stored or inline)
             if len(node_ref) == 32:
-                encoded_node = self._storage[node_ref]
+                # the following line is commented out because of plyvel usage
+                # encoded_node = self._storage[node_ref]
+                encoded_node = self.db.get(node_ref)
             else:
                 encoded_node = node_ref
 
@@ -222,15 +222,22 @@ class MerklePatriciaTrie(BaseTree):
     # Internal helpers (adapted directly from your previous MPT)
     # -------------------------------------------------------------------------
 
-    def _get_node(self, node_ref):
-        """
-        Turn a node reference (hash or inline encoded node) into a Node object.
-        """
-        if len(node_ref) == 32:
-            raw_node = self._storage[node_ref]
-        else:
-            raw_node = node_ref
-        return Node.decode(raw_node)
+    # def _get_node(self, node_ref):
+    #     """
+    #     Turn a node reference (hash or inline encoded node) into a Node object.
+    #     """
+    #     if len(node_ref) == 32:
+    #         raw_node = self._storage[node_ref]
+    #     else:
+    #         raw_node = node_ref
+    #     return Node.decode(raw_node)
+
+    def _get_node(self, reference):
+        data = self.db.get(reference)
+        if data is None:
+            raise KeyError("Node not found: " + reference.hex())
+        return Node.decode(data)
+
 
     def _get(self, node_ref, path: NibblePath):
         """
@@ -394,13 +401,20 @@ class MerklePatriciaTrie(BaseTree):
             ref = self._store_node(Node.Extension(path.consume(1), next_ref))
             branches[idx] = ref
 
+    # def _store_node(self, node):
+    #     """
+    #     Builds a reference from the node and, if needed, saves it in storage.
+    #     Exactly like your previous repo's Node.into_reference logic.
+    #     """
+    #     reference = Node.into_reference(node)
+    #     # If reference is a hash, store encoded node in the storage dict.
+    #     if len(reference) == 32:
+    #         self._storage[reference] = node.encode()
+    #     return reference
+
     def _store_node(self, node):
-        """
-        Builds a reference from the node and, if needed, saves it in storage.
-        Exactly like your previous repo's Node.into_reference logic.
-        """
-        reference = Node.into_reference(node)
-        # If reference is a hash, store encoded node in the storage dict.
-        if len(reference) == 32:
-            self._storage[reference] = node.encode()
+        reference = Node.into_reference(node)      # returns raw bytes
+        if len(reference) == 32:                   # hashed node → store
+            encoded = node.encode()                # raw bytes
+            self.db.put(reference, encoded)        # <--- LevelDB write
         return reference

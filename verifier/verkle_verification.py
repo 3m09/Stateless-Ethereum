@@ -1,9 +1,9 @@
 from registry.verifiers import BaseVerifier, register_verifier
-from tree.verkle_tree import VerkleTree
 from verkle.randomness_scheme import derive_r, derive_r_factor_hash
 from py_ecc import optimized_bls12_381 as b
 from verkle.hash_scheme import hash_point_to_field
 from verkle.hash_scheme import generate_root_bytes
+from verkle.utils.key_to_path import _key_to_path
 
 
 @register_verifier("verkle")
@@ -12,7 +12,9 @@ class VerkleProofVerifier(BaseVerifier):
     def __init__(self, setup_object):
         self.setup_object = setup_object
 
-    def verify_proof(self, values: list[int], keys: list[bytes], root, proof, paths):
+    def verify_proof(self, values: list[bytes], keys: list[bytes], root, proof):
+        paths = [_key_to_path(self.setup_object.WIDTH, k) for k in keys]
+        values = [int.from_bytes(v, byteorder='big') for v in values]
         setup = self.setup_object.setup
         MODULUS = self.setup_object.MODULUS
         LAGRANGE_POLYS = self.setup_object.LAGRANGE_POLYS

@@ -10,10 +10,10 @@ def generate_proof(method, tree, keys, setup=None):
     prover = prover_class(setup)
     return prover.generate_proof(tree, keys)
 
-def verify_proof(method, proof, root, keys, values, paths, setup=None):
+def verify_proof(method, proof, root, keys, values, setup=None):
     verifier_class = VERIFIER_REGISTRY[method]
     verifier = verifier_class(setup)
-    return verifier.verify_proof(values, keys, root, proof, paths)
+    return verifier.verify_proof(values, keys, root, proof)
 
 def generate_tree(method, width, setup=None):
     tree_class = TREE_REGISTRY[method]
@@ -26,6 +26,11 @@ def generate_setup(method, secret, width=None):
     setup_class = SETUP_REGISTRY[method]
     setup = setup_class(secret, width)
     return setup
+
+def get_root_data(method, root):
+    if method == 'verkle':
+        return root.commitment_to_children
+    return root.value
 
 def hex_to_bytes(s, expected_length=32):
     s = s[2:] if s.startswith("0x") else s
@@ -63,33 +68,38 @@ def test():
 
     print("Generated data tree")
 
-    for idx, (k, v) in enumerate(data.items()):
-        if idx % 1000 == 0:
-            print(f" Inserting key of index: {idx}")
-        # convert key string -> bytes 
-        key_bytes = hex_to_bytes(k, KEY_LENGTH)
+    # for idx, (k, v) in enumerate(data.items()):
+    #     if idx % 1000 == 0:
+    #         print(f" Inserting key of index: {idx}")
+    #     # convert key string -> bytes 
+    #     key_bytes = hex_to_bytes(k, KEY_LENGTH)
 
-        val_bytes = hex_to_bytes(v, VALUE_LENGTH)
-        v = bytes_to_int(val_bytes)
+    #     val_bytes = hex_to_bytes(v, VALUE_LENGTH)
+    #     #v = bytes_to_int(val_bytes)
 
-        # insert into tree
-        #print("Inserting key:", k, "value:", int(v, 16))
-        data_tree.insert(key_bytes, v)
-    print("Inserted data into tree")
+    #     # insert into tree
+    #     #print("Inserting key:", k, "value:", int(v, 16))
+    #     data_tree.insert(key_bytes, val_bytes)
+    # print("Inserted data into tree")
 
     key_bytes = [hex_to_bytes(k, KEY_LENGTH) for k in KEYS_TO_PROVE]
-    paths_to_prove = [data_tree._key_to_path(k) for k in key_bytes]   
+    # paths_to_prove = [data_tree._key_to_path(k) for k in key_bytes]  
+    # paths_to_prove = None 
     a = time.time()
 
     commitments, w = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
     print("Generated proof in %.3f seconds" % (time.time() - a))
     print('-------------------')
 
-    print("Witness: ", commitments, w)
+    #print("Witness: ", commitments, w)
+    print("Printing root")
+    print(data_tree.root.value)
     
     a = time.time()
+
+    root_data = get_root_data(TREE_TYPE, data_tree.root)
     
-    assert verify_proof(VERIFIER_TYPE, (commitments, w), data_tree.root.commitment_to_children, key_bytes, [int(data[k], 16) for k in KEYS_TO_PROVE], paths_to_prove, setup_object)
+    assert verify_proof(VERIFIER_TYPE, (commitments, w), root_data, key_bytes, [hex_to_bytes(data[k], VALUE_LENGTH) for k in KEYS_TO_PROVE], setup_object)
 
     print("Verified proof in %.3f seconds" % (time.time() - a))
 
