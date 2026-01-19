@@ -2,11 +2,12 @@
 
 import rlp
 
-from registry.trees import BaseTree, register_tree
-from registry.trees import TreeNode
+from registry.trees import BaseTree, register_tree, TreeNode
 from merkle.nibble_path import NibblePath
 from merkle.node import Node
 from merkle.hash import keccak_hash
+
+
 
 
 @register_tree("merkle")
@@ -23,13 +24,16 @@ class MerklePatriciaTrie(BaseTree):
     """
 
     def __init__(self, width=16, setup_object=None, secure=False, storage=None):
-        # BaseTree will create a TreeNode root, but we won't use its children directly.
-        # We treat BaseTree.root.value as "root reference" (bytes) of the MPT.
+        # BaseTree doesn't have __init__, so we don't call super().__init__()
+        # We manage our own state for MPT
         if width != 16:
             raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
 
-        super().__init__(width=width, setup_object=setup_object)
-
+        # Create a TreeNode for registry compatibility
+        self.root = TreeNode(width)
+        self.width = width
+        self.setup_object = setup_object
+        
         # Underlying node storage: hash -> encoded node
         self._storage = storage if storage is not None else {}
 
@@ -404,3 +408,86 @@ class MerklePatriciaTrie(BaseTree):
         if len(reference) == 32:
             self._storage[reference] = node.encode()
         return reference
+
+    # -------------------------------------------------------------------------
+    # STARK Proof Generation and Verification
+    # -------------------------------------------------------------------------
+
+    def get_stark_proof(self, key: bytes, security_bits: int = 128, trace_length: int = 65536):
+        """
+        Generate a ZK-STARK proof for MPT lookup.
+        
+        Proves that the key maps to a value in the MPT without revealing
+        the entire tree structure.
+        
+        Args:
+            key: Lookup key
+            security_bits: Target security level (default: 128)
+            trace_length: Execution trace length (default: 65536)
+            
+        Returns:
+            STARKProofResult containing proof and metadata
+            
+        Raises:
+            KeyError: If key is not in the trie
+        """
+        from prover.stark_proof import MPTSTARKProver
+        
+        print(f"\n=== Generating STARK Proof for MPT Lookup ===")
+        print(f"Key: {key.hex() if isinstance(key, bytes) else key}")
+        print(f"Security: {security_bits} bits")
+        print(f"Trace length: {trace_length}")
+        
+        # Get the value (will raise KeyError if not found)
+        value = self.get(key)
+        print(f"Value: {value.hex() if isinstance(value, bytes) else value}")
+        
+        # Get traditional Merkle proof nodes
+        proof_nodes = self.get_proof_tree(key)
+        print(f"Proof contains {len(proof_nodes)} nodes")
+        
+        # Create STARK prover
+        prover = MPTSTARKProver(
+            security_bits=security_bits,
+            trace_length=trace_length
+        )
+        
+        # Generate STARK proof
+        print("\nGenerating STARK proof...")
+        stark_proof = prover.prove_lookup(proof_nodes, key, value)
+        
+        print(f"\n✓ STARK proof generated successfully!")
+        print(f"  Proof size: {stark_proof.proof_size_bytes:,} bytes")
+        print(f"  Proving time: {stark_proof.proving_time_ms:.2f} ms")
+        print(f"  Security level: {stark_proof.metadata['security_bits']} bits")
+        
+        return stark_proof
+    
+    def verify_stark_proof(self, stark_proof_result) -> bool:
+        """
+        Verify a ZK-STARK proof for MPT lookup.
+        
+        Verifies the proof without needing access to the full tree.
+        
+        Args:
+            stark_proof_result: STARKProofResult from get_stark_proof()
+            
+        Returns:
+            True if proof is valid, False otherwise
+        """
+        from verifier.stark_verification import MPTSTARKVerifier
+        
+        print(f"\n=== Verifying STARK Proof ===")
+        
+        # Create STARK verifier
+        verifier = MPTSTARKVerifier()
+        
+        # Verify proof
+        is_valid = verifier.verify_lookup(stark_proof_result)
+        
+        if is_valid:
+            print("✓ Proof verification successful!")
+        else:
+            print("✗ Proof verification failed!")
+        
+        return is_valid
