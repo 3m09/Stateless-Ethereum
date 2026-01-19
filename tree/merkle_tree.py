@@ -418,3 +418,19 @@ class MerklePatriciaTrie(BaseTree):
             encoded = node.encode()                # raw bytes
             self.db.put(reference, encoded)        # <--- LevelDB write
         return reference
+    
+    def get_proof_size(self, commitments, root_hash: bytes) -> int:
+        """
+        encoded_nodes: list of RLP-encoded trie nodes (bytes)
+        root_hash: 32-byte Keccak hash
+        """
+        size = 0
+
+        for commitment in commitments:
+            for c in commitment:
+                size += len(c)
+
+        size += len(root_hash) 
+
+        return size
+

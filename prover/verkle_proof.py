@@ -30,10 +30,6 @@ class VerkleProofGenerator(BaseProver):
             path = _key_to_path(tree.width, key)
             # Walk from top to bottom of the tree
             node = tree.root
-            print("printing root details")
-            print(node.commitment_to_children)
-            print(node.value)
-            print(node.children)
             for i in range(len(path)):
                 # Generate the quotient polynomial for this node
                 child_values = []

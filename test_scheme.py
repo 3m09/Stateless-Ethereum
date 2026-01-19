@@ -87,11 +87,23 @@ def test():
     # paths_to_prove = None 
     a = time.time()
 
+
+    # proof = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
+    # print('Generated proof:', proof)
+    # print(proof.keys())
+    # with open('proof', 'wb') as f:
+    #     pickle.dump(proof, f)
+
+    # -------------------------snark boundary-------------------------
+
     commitments, w = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
     print("Generated proof in %.3f seconds" % (time.time() - a))
     print('-------------------')
 
-    #print("Witness: ", commitments, w)
+    print("Proof size:")
+    print(data_tree.get_proof_size(commitments, w))
+
+
     print("Printing root")
     print(data_tree.root.value)
     

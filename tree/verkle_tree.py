@@ -241,3 +241,27 @@ class VerkleTree(BaseTree):
     #     node.value = int.from_bytes(value_bytes, 'big')
     #     return node
 
+   
+
+    def get_proof_size(
+        self,
+        commitments: int,
+        opening_proofs: int,
+        scalar_count = 2) -> int:
+        """
+        commitments_count: number of commitment G1 points
+        opening_proofs_count: number of witness G1 points
+        scalar_count: number of field elements
+        """
+        size = 0
+        for c in commitments:
+            commitments_count = len(c)
+            size += commitments_count * 48
+
+        opening_proofs_count = len(opening_proofs)
+        size += opening_proofs_count * 48
+        size += scalar_count * 32
+
+        return size
+
+
