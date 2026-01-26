@@ -1,11 +1,11 @@
 """
-zkstark - Zero-Knowledge STARK Implementation
+zkSTARK - Zero-Knowledge STARK Implementation
 
 A modular ZK-STARK proof system for Merkle Patricia Trie operations.
 Provides field arithmetic, FFT operations, FRI protocol, and circuit definitions.
 """
 
-from zkstark.field import (
+from zkSTARK.field import (
     FIELD_PRIME,
     field_add,
     field_mul,
@@ -15,7 +15,7 @@ from zkstark.field import (
     FieldElement
 )
 
-from zkstark.security import SecurityParameters
+from zkSTARK.security import SecurityParameters
 
 __version__ = "0.1.0"
 __all__ = [

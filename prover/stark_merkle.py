@@ -7,6 +7,8 @@ integrating with the existing prover infrastructure.
 
 from typing import Dict, Any, List
 import numpy as np
+from tree.merkle_tree import MerklePatriciaTrie
+from registry.provers import BaseProver, register_prover
 from dataclasses import dataclass
 import time
 
@@ -29,8 +31,8 @@ class STARKProofResult:
     proof_size_bytes: int
     proving_time_ms: float
 
-
-class MPTSTARKProver:
+@register_prover("zkstarkmerkle")
+class MPTSTARKProver(BaseProver):
     """
     STARK Prover for Merkle Patricia Trie operations.
     
@@ -42,7 +44,7 @@ class MPTSTARKProver:
         proof = prover.prove_lookup(proof_nodes, key, value)
     """
     
-    def __init__(self, security_bits: int = 128, trace_length: int = 65536):
+    def __init__(self, setup = None, security_bits: int = 128, trace_length: int = 65536):
         """
         Initialize STARK prover with security parameters.
         
@@ -54,12 +56,12 @@ class MPTSTARKProver:
         self.trace_length = trace_length
         
         # Import STARK components
-        from zkstark.security import SecurityParameters
-        from zkstark.field import FieldElement
-        from zkstark.fri import FRIProver
-        from zkstark.transcript import FiatShamirTranscript
-        from zkstark.fft import compute_lde
-        from zkstark.commitment import CommitmentTree
+        from zkSTARK.security import SecurityParameters
+        from zkSTARK.field import FieldElement
+        from zkSTARK.fri import FRIProver
+        from zkSTARK.transcript import FiatShamirTranscript
+        from zkSTARK.fft import compute_lde
+        from zkSTARK.commitment import CommitmentTree
         
         # Compute security parameters
         self.params = SecurityParameters.compute_parameters(
@@ -73,6 +75,31 @@ class MPTSTARKProver:
         self.FiatShamirTranscript = FiatShamirTranscript
         self.compute_lde = compute_lde
         self.CommitmentTree = CommitmentTree
+    def generate_proof(self, tree: 'MerklePatriciaTrie', keys: List[bytes]) :
+        """
+        Generate Merkle proofs for multiple keys.
+        
+        Args:
+            tree: MerklePatriciaTrie instance
+            keys: List of keys to prove (bytes)
+        """
+        # Collect proof for each key
+        commitments = []
+        for key in keys:
+            # get_proof_tree returns list of RLP-encoded nodes along the path
+            proof_path = tree.get_proof_tree(key)
+            value = tree.get(key)
+            if proof_path is None:
+                raise ValueError(f"Key not found in tree: {key.hex()}")
+            proof = self.prove_lookup(proof_path, key, value)
+            commitments.append(proof)
+        
+        # The "witness" in Merkle is the root hash
+        # This is dummy witness to match interface
+        witness = tree.root_hash()
+        
+        return commitments, witness
+        
     
     def prove_lookup(self, proof_nodes: List[bytes], key: bytes, value: bytes) -> STARKProofResult:
         """
@@ -89,7 +116,7 @@ class MPTSTARKProver:
         start_time = time.time()
         
         # 1. Create MPT circuit and generate trace
-        from zkstark.circuits.mpt_circuit import MPTLookupCircuit, MPTConstraintSystem
+        from zkSTARK.circuits.mpt_circuit import MPTLookupCircuit, MPTConstraintSystem
         
         circuit = MPTLookupCircuit(proof_nodes, key, value)
         trace = circuit.generate_trace(n_steps=self.trace_length)
@@ -136,7 +163,7 @@ class MPTSTARKProver:
         Returns:
             STARK proof dictionary
         """
-        from zkstark.field import field_add, field_mul
+        from zkSTARK.field import field_add, field_mul
         
         # Initialize Fiat-Shamir transcript
         transcript = self.FiatShamirTranscript(security_bits=self.security_bits)
@@ -213,8 +240,8 @@ class MPTSTARKProver:
         Returns:
             Composition polynomial evaluations
         """
-        from zkstark.circuits.mpt_circuit import MPTConstraintSystem
-        from zkstark.field import field_add, field_mul, FIELD_PRIME_INT
+        from zkSTARK.circuits.mpt_circuit import MPTConstraintSystem
+        from zkSTARK.field import field_add, field_mul, FIELD_PRIME_INT
         
         n = len(trace_lde[0])  # Extended domain size
         composition = np.zeros(n, dtype=np.uint64)
@@ -244,7 +271,7 @@ class MPTSTARKProver:
         Returns:
             True if trace is valid
         """
-        from zkstark.circuits.mpt_circuit import MPTConstraintSystem
+        from zkSTARK.circuits.mpt_circuit import MPTConstraintSystem
         
         # Check dimensions
         if trace.n_registers != 8:

@@ -1,11 +1,11 @@
 """
-zkstark.circuits - Circuit definitions for ZK-STARK proofs
+zkSTARK.circuits - Circuit definitions for ZK-STARK proofs
 
 Provides circuit implementations for various computations including
 MPT lookups with Keccak hashing and RLP encoding constraints.
 """
 
-from zkstark.circuits.mpt_circuit import (
+from zkSTARK.circuits.mpt_circuit import (
     MPTLookupCircuit,
     MPTConstraintSystem,
     ExecutionTrace

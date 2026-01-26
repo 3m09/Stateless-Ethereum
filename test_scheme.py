@@ -100,8 +100,8 @@ def test():
     print("Generated proof in %.3f seconds" % (time.time() - a))
     print('-------------------')
 
-    print("Proof size:")
-    print(data_tree.get_proof_size(commitments, w))
+    # print("Proof size:")
+    # print(data_tree.get_proof_size(commitments, w))
 
 
     print("Printing root")

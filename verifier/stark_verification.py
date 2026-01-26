@@ -6,10 +6,11 @@ integrating with the existing verifier infrastructure.
 """
 
 from typing import Dict, Any
+from registry.verifiers import BaseVerifier, register_verifier
 import numpy as np
 
-
-class MPTSTARKVerifier:
+@register_verifier("zkstarkmerkle")
+class MPTSTARKVerifier(BaseVerifier):
     """
     STARK Verifier for Merkle Patricia Trie operations.
     
@@ -21,16 +22,24 @@ class MPTSTARKVerifier:
         is_valid = verifier.verify_lookup(proof_result)
     """
     
-    def __init__(self):
+    def __init__(self, setup=None):
         """Initialize STARK verifier."""
         # Import STARK components
-        from zkstark.fri import FRIVerifier
-        from zkstark.transcript import FiatShamirTranscript
-        from zkstark.commitment import CommitmentTree
+        from zkSTARK.fri import FRIVerifier
+        from zkSTARK.transcript import FiatShamirTranscript
+        from zkSTARK.commitment import CommitmentTree
         
         self.FRIVerifier = FRIVerifier
         self.FiatShamirTranscript = FiatShamirTranscript
         self.CommitmentTree = CommitmentTree
+    
+    def verify_proof(self, values, keys, root, proof, setup=None):
+        real_proofs, _ = proof
+        toReturn = True
+        for p in real_proofs:
+            res = self.verify_lookup(p)
+            toReturn = toReturn and res
+        return toReturn
     
     def verify_lookup(self, proof_result) -> bool:
         """

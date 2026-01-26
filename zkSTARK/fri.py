@@ -8,10 +8,10 @@ has a bounded degree, which is the core of STARK proofs.
 from typing import List, Dict, Any, Tuple
 import numpy as np
 import hashlib
-from zkstark.field import field_add, field_mul, field_inv
-from zkstark.fft import FFT_CACHE, ntt_forward, ntt_inverse
-from zkstark.commitment import MerkleTree
-from zkstark.transcript import FiatShamirTranscript
+from zkSTARK.field import field_add, field_mul, field_inv
+from zkSTARK.fft import FFT_CACHE, ntt_forward, ntt_inverse
+from zkSTARK.commitment import MerkleTree
+from zkSTARK.transcript import FiatShamirTranscript
 
 
 class FRIProof:

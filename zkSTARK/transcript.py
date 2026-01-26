@@ -11,7 +11,7 @@ import secrets
 import struct
 from typing import Optional, List
 import numpy as np
-from zkstark.field import FIELD_PRIME_INT, hash_to_field
+from zkSTARK.field import FIELD_PRIME_INT, hash_to_field
 
 
 # ============================================================================

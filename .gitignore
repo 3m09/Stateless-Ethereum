@@ -4,3 +4,10 @@ venv/**
 *.pyc
 libsnark/**
 .python-version
+circuit.zkif
+computation.zkif
+pysnark_ek
+pysnark_log
+pysnark_vk
+bellman-pk  
+bellman-proof

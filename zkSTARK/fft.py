@@ -7,7 +7,7 @@ for efficient polynomial operations in STARK proving.
 
 import numpy as np
 from numba import njit
-from zkstark.field import (
+from zkSTARK.field import (
     FIELD_PRIME, FIELD_PRIME_INT, GENERATOR,
     field_add, field_sub, field_mul, field_inv, field_pow
 )

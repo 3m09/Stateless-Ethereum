@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import List, Tuple, Dict, Any
 import numpy as np
 import hashlib
-from zkstark.field import field_add, field_mul, field_sub, FIELD_PRIME_INT, hash_to_field
+from zkSTARK.field import field_add, field_mul, field_sub, FIELD_PRIME_INT, hash_to_field
 
 
 @dataclass
