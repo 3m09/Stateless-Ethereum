@@ -23,8 +23,8 @@ class MerklePatriciaTrie(BaseTree):
     """
 
     def __init__(self, width=16, setup_object=None, secure=False, storage=None):
-        # BaseTree will create a TreeNode root, but we won't use its children directly.
-        # We treat BaseTree.root.value as "root reference" (bytes) of the MPT.
+        # BaseTree doesn't have __init__, so we don't call super().__init__()
+        # We manage our own state for MPT
         if width != 16:
             raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
 
