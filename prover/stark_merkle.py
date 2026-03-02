@@ -327,3 +327,9 @@ class MPTSTARKProver(BaseProver):
             'trace_length': self.trace_length,
             'security_params': self.params.__dict__
         }
+    
+    def proof_size(self, commitments, witness) -> int:
+        size = 0
+        for proof in commitments:
+            size += proof.proof_size_bytes
+        return size

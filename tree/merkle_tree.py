@@ -420,17 +420,11 @@ class MerklePatriciaTrie(BaseTree):
         return reference
     
     def get_proof_size(self, commitments, root_hash: bytes) -> int:
-        """
-        encoded_nodes: list of RLP-encoded trie nodes (bytes)
-        root_hash: 32-byte Keccak hash
-        """
         size = 0
-
-        for commitment in commitments:
-            for c in commitment:
-                size += len(c)
-
-        size += len(root_hash) 
-
+        for proof_path in commitments:
+            print("proof path length:", len(proof_path))
+            for rlp_node in proof_path:
+                size += len(rlp_node)
+        size += len(root_hash)
         return size
 

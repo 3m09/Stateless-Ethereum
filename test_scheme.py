@@ -4,11 +4,15 @@ from registry.provers import PROVER_REGISTRY
 from registry.verifiers import VERIFIER_REGISTRY
 from registry.trees import TREE_REGISTRY
 from registry.setup import SETUP_REGISTRY
+import csv
+from datetime import datetime
 
 def generate_proof(method, tree, keys, setup=None):
     prover_class = PROVER_REGISTRY[method]
     prover = prover_class(setup)
-    return prover.generate_proof(tree, keys)
+    proof = prover.generate_proof(tree, keys)
+    proof_size = prover.proof_size(*proof)
+    return proof, proof_size
 
 def verify_proof(method, proof, root, keys, values, setup=None):
     verifier_class = VERIFIER_REGISTRY[method]
@@ -96,12 +100,14 @@ def test():
 
     # -------------------------snark boundary-------------------------
 
-    commitments, w = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
-    print("Generated proof in %.3f seconds" % (time.time() - a))
+    proof, proof_size = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
+    commitments, w = proof
+    proving_time = time.time() - a
+    print("Generated proof in %.3f seconds" % (proving_time))
     print('-------------------')
 
-    # print("Proof size:")
-    # print(data_tree.get_proof_size(commitments, w))
+    print("Proof size:")
+    print(proof_size, "bytes")
 
 
     print("Printing root")
@@ -113,7 +119,32 @@ def test():
     
     assert verify_proof(VERIFIER_TYPE, (commitments, w), root_data, key_bytes, [hex_to_bytes(data[k], VALUE_LENGTH) for k in KEYS_TO_PROVE], setup_object)
 
-    print("Verified proof in %.3f seconds" % (time.time() - a))
+    verification_time = time.time() - a
+    print("Verified proof in %.3f seconds" % (verification_time))
+    # Save to CSV
+    csv_file = 'results.csv'
+    fieldnames = ['datetime', 'WIDTH', 'KEY_LENGTH', 'VALUE_LENGTH', 'SECRET', 'TREE_TYPE', 'PROVER_TYPE', 'VERIFIER_TYPE', 'SETUP_TYPE', 'num_of_KEYS_TO_PROVE', 'proof_size', 'proving_time', 'verification_time']
+    row = {
+        'datetime': datetime.now().isoformat(),
+        'WIDTH': WIDTH,
+        'KEY_LENGTH': KEY_LENGTH,
+        'VALUE_LENGTH': VALUE_LENGTH,
+        'SECRET': SECRET,
+        'TREE_TYPE': TREE_TYPE,
+        'PROVER_TYPE': PROVER_TYPE,
+        'VERIFIER_TYPE': VERIFIER_TYPE,
+        'SETUP_TYPE': SETUP_TYPE,
+        'num_of_KEYS_TO_PROVE': len(KEYS_TO_PROVE),
+        'proof_size': proof_size,
+        'proving_time': proving_time,
+        'verification_time': verification_time
+    }
+    
+    with open(csv_file, 'a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if f.tell() == 0:  # Write header if file is empty
+            writer.writeheader()
+        writer.writerow(row)
 
 if __name__ == '__main__':
     test()

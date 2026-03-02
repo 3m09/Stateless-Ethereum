@@ -1,11 +1,11 @@
 {
-    "TREE_TYPE": "merkle",
-    "PROVER_TYPE": "zksnarkmerkle",
-    "VERIFIER_TYPE": "zksnarkmerkle",
-    "SETUP_TYPE": "",
+    "TREE_TYPE": "verkle",
+    "PROVER_TYPE": "snark_verkle",
+    "VERIFIER_TYPE" : "zkstarkmerkle",
+    "SETUP_TYPE": "verkle_kzg",
     "KEY_LENGTH": 32,
     "VALUE_LENGTH": 32,
-    "WIDTH": 16,
+    "WIDTH": 256,
     "SECRET": 1927409816240961209460912649124,
-    "KEYS_TO_PROVE": ["0x0001", "0x0002", "0x0003", "0x0004"]
+    "KEYS_TO_PROVE": ["0x02b3", "0x01bc", "0x025f", "0x032e", "0x0130"]
 }

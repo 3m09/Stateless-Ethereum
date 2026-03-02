@@ -6,6 +6,7 @@ from merkle.node import Node
 from merkle.nibble_path import NibblePath
 from merkle.hash import keccak_hash
 import atexit
+import os
 
 def serialize_proof_tree_poseidon(proof_nodes: list[bytes], key: bytes):
     if not proof_nodes:
@@ -359,6 +360,21 @@ class ZKSnarkMerkleProof(BaseProver):
         # print(f"DEBUG: Public inputs: {len(backend.pubvals)}")
 
         return 'dummy_commitments', 'dummy_witness'  # Placeholder
+    
+    def proof_size(self, commitments, witness) -> int:
+        # Hardcoded list of binary files to sum sizes for proof size calculation
+        file_names = [
+            'circuit.zkif',
+            'computation.zkif',
+        ]
+        
+        total_size = 0
+        for file_name in file_names:
+            if os.path.exists(file_name):
+                total_size += os.path.getsize(file_name)
+            # If file doesn't exist, skip (or raise error if preferred)
+        
+        return total_size
 
 
 

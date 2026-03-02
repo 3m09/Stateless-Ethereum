@@ -12,8 +12,10 @@ class VerkleProofGenerator(BaseProver):
 
     def __init__(self, setup_object):
         self.setup_object = setup_object
+        self.tree = None
 
     def generate_proof(self, tree: VerkleTree, keys: list[bytes]):
+        self.tree = tree
         setup = self.setup_object.setup
         committee_root = tree.root.commitment_to_children
         # Generate a random r value;
@@ -55,3 +57,6 @@ class VerkleProofGenerator(BaseProver):
                 
         # Generate a polynomial commitment for the result
         return commitments, b.normalize(lincomb(setup[2], total_poly_evaluations, b.add, b.Z1))
+    
+    def proof_size(self, commitments, witness) -> int:
+        return self.tree.get_proof_size(commitments, witness)
