@@ -11,3 +11,14 @@ pysnark_log
 pysnark_vk
 bellman-pk  
 bellman-proof
+*.fls
+*.log
+*.aux
+*.out
+*.toc
+*.nav
+*.fdb_latexmk
+*.synctex.gz
+*.blg
+*.bbl
+*.snm

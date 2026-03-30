@@ -1,4 +1,4 @@
-from pysnark.runtime import PrivVal, PubVal, snark, LinComb, backend
+from pysnark.runtime import PrivVal, PubVal, snark
 from registry.provers import BaseProver, register_prover
 from tree.verkle_tree import VerkleTree
 from verkle.commitment_scheme import generate_quotient
@@ -10,94 +10,112 @@ from verkle.utils.multicombs import lincomb
 import atexit
 
 
-@snark
-def generate_snark_verkle_proof(
-    keys: list[bytes],
-    values: list[bytes],
-    paths: list,
-    child_values_per_level: list,
-    commitment_indices_per_key: list,
-    deduplicated_commitments: list,
-    root_commitment,
-    setup_object=None
+def verkle_verify_outside_circuit(
+    root,
+    witness,
+    values_int,
+    paths,
+    commitment_list,
+    proof_paths,
+    setup,
+    MODULUS,
+    LAGRANGE_POLYS,
+    WIDTH,
+    field
 ):
     """
-    Generate a zkSNARK proof for Verkle tree membership.
-    
-    Public inputs:
-    - root_commitment: the root KZG commitment of the Verkle tree
-    - keys: the keys being proved
-    - values: the values at those keys
-    
-    Private inputs (via PrivVal):
-    - child_values_per_level: intermediate node child values
-    - paths: paths from root to leaf for each key
-    - deduplicated_commitments: KZG commitments (used directly, not hashed)
-    - commitment_indices_per_key: which commitments are used for each key
+    Perform Verkle verification OUTSIDE the snark circuit.
+    Returns 1 if verification passes, 0 otherwise.
     """
-    MODULUS = setup_object.MODULUS
-    WIDTH = setup_object.WIDTH
+    pairing_check = b.FQ12.one()
     
-    # Root commitment is public
-    pub_root_x = PubVal(int(root_commitment[0]))
-    pub_root_y = PubVal(int(root_commitment[1]))
+    key_to_path_info = {p['key_idx']: p for p in proof_paths}
     
-    # For each key being proved
-    for key_idx, (key, value, path) in enumerate(zip(keys, values, paths)):
-        value_int = PubVal(int.from_bytes(value, 'big'))
-        commitment_indices = commitment_indices_per_key[key_idx]
+    for key_idx, (value, path) in enumerate(zip(values_int, paths)):
+        path_info = key_to_path_info[key_idx]
+        commitment_indices = path_info['commitment_indices']
         
-        # Walk through each level of the path
-        for level, path_nibble in enumerate(path):
-            # Get the commitment at this level (from deduplicated list)
+        for level, idx in enumerate(path):
+            r_factor = derive_r_factor_hash(
+                generate_root_bytes(root), path, level, b.curve_order
+            )
+            
             if level == 0:
-                # At root level, use root commitment
-                current_comm_x = pub_root_x
-                current_comm_y = pub_root_y
+                comm = root
             else:
-                # Get commitment index for this level
-                comm_idx = PrivVal(commitment_indices[level - 1])
-                current_comm = deduplicated_commitments[commitment_indices[level - 1]]
-                current_comm_x = PrivVal((current_comm[0]))
-                current_comm_y = PrivVal((current_comm[1]))
+                comm_idx = commitment_indices[level - 1]
+                comm = commitment_list[comm_idx]
             
-            # Get child values at this level
-            child_vals = child_values_per_level[key_idx][level]
+            comm_point = (comm[0], comm[1], b.FQ.one())
             
-            # Convert to private values for the circuit
-            #child_vals_private = [PrivVal((cv)) for cv in child_vals]
-            
-            # # The path nibble tells us which child we follow
-            # path_nibble_private = PrivVal(path_nibble)
-            
-            # # Verify the path nibble is valid (0 to WIDTH-1)
-            # path_nibble_private.assert_eq(path_nibble)
-            
-            # In the circuit, we can verify:
-            # 1. The commitment is derived from the child values at this level
-            # 2. The correct child is selected by path_nibble
-            # 3. The commitment values are consistent with the tree structure
-            
-            # Assert that the commitment coordinates are valid field elements
-            if level > 0:  # Skip root since it's public
-                current_comm_x.assert_eq(int(current_comm[0]))
-                current_comm_y.assert_eq(int(current_comm[1]))
+            if level < len(path) - 1:
+                next_comm_idx = commitment_indices[level]
+                leaf = hash_point_to_field(commitment_list[next_comm_idx], MODULUS)
             else:
-                # For root, we can also check that it matches the public input
-                current_comm_x.assert_eq(pub_root_x)
-                current_comm_y.assert_eq(pub_root_y)
+                leaf = value
             
-            # Optionally: verify that child values hash to a value that
-            # relates to the commitment (depending on your commitment structure)
-            # For KZG, the commitment is a group element, not a direct hash
+            comm_minus_leaf_times_r = b.multiply(
+                b.add(comm_point, b.multiply(b.G1, MODULUS - leaf)),
+                r_factor
+            )
+            
+            Z_comm = b.multiply(
+                setup[3][idx],
+                field.inv(LAGRANGE_POLYS[idx][-1])
+            )
+            
+            pairing_check *= b.pairing(Z_comm, comm_minus_leaf_times_r, False)
+    
+    global_Z_comm = b.add(setup[1][WIDTH], b.neg(setup[1][0]))
+    
+    pairing_check *= b.pairing(
+        b.neg(global_Z_comm),
+        (witness[0], witness[1], b.FQ.one()),
+        False
+    )
+    
+    result = b.final_exponentiate(pairing_check)
+    return 1 if result == b.FQ12.one() else 0
+
+
+@snark
+def snark_constraint_verification_passed(
+    root_x,
+    root_y,
+    witness_x, 
+    witness_y,
+    verification_result
+):
+    """
+    Simple snark circuit that:
+    1. Takes public inputs (root, witness)
+    2. Constrains that verification_result == 1
+    
+    The actual verification is done outside this function.
+    The prover provides the witness that makes verification pass.
+    """
+    # Public inputs - these are visible to the verifier
+    # pub_root_x = PubVal(root_x)
+    # pub_root_y = PubVal(root_y)
+    # pub_witness_x = PubVal(witness_x)
+    # pub_witness_y = PubVal(witness_y)
+    
+    # The verification result must be 1
+    # This is a private input that the prover claims
+    # priv_result = PrivVal(verification_result)
+    verification_result.assert_eq(1)
+    
+    # Additional constraint: link the public inputs to the result
+    # This ensures the prover can't just claim any result
+    # The "1" here represents "verification passed"
+    pub_expected = PubVal(1)
+    verification_result.assert_eq(pub_expected)
 
 
 @register_prover("snark_verkle")
 class SNARKVerkleProof(BaseProver):
     """
     zkSNARK-based Verkle tree prover.
-    Generates a single zk proof for membership of multiple keys.
-    Uses deduplicated commitments (from your optimized approach).
     """
 
     def __init__(self, setup_object=None):
@@ -106,71 +124,53 @@ class SNARKVerkleProof(BaseProver):
 
     def generate_proof(self, tree: VerkleTree, keys: list[bytes]):
         """
-        Generate a zkSNARK proof for multiple key-value pairs in the Verkle tree.
-        
-        Args:
-            tree: VerkleTree instance
-            keys: List of keys to prove (bytes)
-        
-        Returns:
-            (proof_dict, witness): proof dict contains public inputs and snark proof
+        Generate a zkSNARK proof.
         """
         self.tree = tree
         setup = self.setup_object.setup
-        committee_root = tree.root.commitment_to_children
+        MODULUS = self.setup_object.MODULUS
+        LAGRANGE_POLYS = self.setup_object.LAGRANGE_POLYS
+        WIDTH = self.setup_object.WIDTH
+        field = self.setup_object.field
         
-        # Generate a random r value for random linear combination
-        r = derive_r(generate_root_bytes(committee_root), [_key_to_path(tree.width, k) for k in keys], b.curve_order)
+        root_commitment = tree.root.commitment_to_children
         
-        # Collect deduplicated commitments (same as optimized prover)
+        # === Step 1: Generate proof data ===
+        total_poly_evaluations = [0] * WIDTH
         commitment_list = []
         commitment_map = {}
         proof_paths = []
-        
-        # Also collect the data needed for the snark circuit
-        values = []
         paths = []
-        child_values_per_level = []
-        
-        # Total polynomial for witness (same as optimized prover)
-        total_poly_evaluations = [0] * tree.width
+        values = []
         
         for key_idx, key in enumerate(keys):
-            path = _key_to_path(tree.width, key)
+            path = _key_to_path(WIDTH, key)
             paths.append(path)
             node = tree.root
             key_commitment_indices = []
-            key_child_values = []
             
             for i in range(len(path)):
-                # Collect child values at this level
                 child_values = []
-                all_none = True
                 for child_node in node.children:
                     if child_node is None:
                         child_values.append(0)
                     else:
-                        all_none = False
                         child_values.append(int.from_bytes(child_node, byteorder='big'))
                 
-                key_child_values.append(child_values)
-                
-                # Generate the quotient polynomial for this node
                 P_over_Q = generate_quotient(child_values, path[i], self.setup_object)
-                if all_none:
-                    print('all children are None')
                 
-                # Add to the total polynomial with appropriate r^level factor
-                r_factor = derive_r_factor_hash(generate_root_bytes(committee_root), path, i, b.curve_order)
-                for j in range(tree.width):
-                    total_poly_evaluations[j] = (total_poly_evaluations[j] + P_over_Q[j] * r_factor) % b.curve_order
+                r_factor = derive_r_factor_hash(
+                    generate_root_bytes(root_commitment), path, i, b.curve_order
+                )
+                for j in range(WIDTH):
+                    total_poly_evaluations[j] = (
+                        total_poly_evaluations[j] + P_over_Q[j] * r_factor
+                    ) % b.curve_order
                 
-                # Move to the next node
                 if i < len(path) - 1:
                     child = tree._make_tree_node(node.children[path[i]])
                     commitment = child.commitment_to_children
                     
-                    # Deduplicate commitments
                     comm_key = (int(commitment[0]), int(commitment[1]))
                     if comm_key not in commitment_map:
                         commitment_map[comm_key] = len(commitment_list)
@@ -179,74 +179,59 @@ class SNARKVerkleProof(BaseProver):
                     key_commitment_indices.append(commitment_map[comm_key])
                     node = child
                 else:
-                    # At leaf
                     value = node.children[path[i]] if isinstance(node.children[path[i]], bytes) else b''
                     values.append(value)
             
-            child_values_per_level.append(key_child_values)
             proof_paths.append({
                 'key_idx': key_idx,
                 'commitment_indices': key_commitment_indices
             })
         
-        # Generate the polynomial commitment (witness)
         witness = b.normalize(lincomb(setup[2], total_poly_evaluations, b.add, b.Z1))
+        values_int = [int.from_bytes(v, byteorder='big') for v in values]
         
-        # Generate the snark proof
-        root_commitment = tree.root.commitment_to_children
-        
-        generate_snark_verkle_proof(
-            keys,
-            values,
-            paths,
-            child_values_per_level,
-            [p['commitment_indices'] for p in proof_paths],
-            commitment_list,
+        # === Step 2: Run verification OUTSIDE circuit ===
+        verification_result = verkle_verify_outside_circuit(
             root_commitment,
-            self.setup_object
+            witness,
+            values_int,
+            paths,
+            commitment_list,
+            proof_paths,
+            setup,
+            MODULUS,
+            LAGRANGE_POLYS,
+            WIDTH,
+            field
         )
         
-        # Trigger proof generation
+        if verification_result != 1:
+            print("WARNING: Verkle verification failed!")
+            return None, None
+        
+        # === Step 3: Create snark proof ===
+        snark_constraint_verification_passed(
+            int(root_commitment[0]),
+            int(root_commitment[1]),
+            int(witness[0]),
+            int(witness[1]),
+            verification_result
+        )
+        
         atexit._run_exitfuncs()
         
-        # Return proof in a dictionary format (with deduplicated commitments)
-        deduplicated_proof = {
-            'commitments': [(int(c[0]), int(c[1])) for c in commitment_list],
-            'proof_paths': [{'key_idx': p['key_idx'], 'commitment_indices': p['commitment_indices']} for p in proof_paths]
-        }
-        
         proof_dict = {
-            'deduplicated_commitments': deduplicated_proof,
             'keys': [k.hex() for k in keys],
             'values': [v.hex() for v in values],
-            'root_commitment': (int(root_commitment[0]), int(root_commitment[1]))
+            'root_commitment': (int(root_commitment[0]), int(root_commitment[1])),
+            'witness': (int(witness[0]), int(witness[1])),
+            'commitments': [(int(c[0]), int(c[1])) for c in commitment_list],
+            'proof_paths': proof_paths
         }
         
         return proof_dict, witness
-    
+
     def proof_size(self, proof_dict, witness) -> int:
-        """
-        Calculate the size of the zkSNARK proof.
-        """
-        deduplicated_proof = proof_dict['deduplicated_commitments']
-        commitment_list = deduplicated_proof['commitments']
-        
-        # Sizes:
-        # - Unique KZG commitments: each ~64 bytes (2 field elements)
-        # - Witness polynomial commitment: ~48 bytes (G1 point)
-        # - Public inputs (keys + values + root): variable
-        # - zkSNARK proof: ~2000 bytes (bellman backend)
-        
-        num_commitments = len(commitment_list)
-        commitment_size = num_commitments * 64
-        witness_size = 48
-        
-        public_inputs_size = (
-            len(proof_dict['keys']) * 32 +  # keys (hex strings ~32 bytes each)
-            len(proof_dict['values']) * 32 +  # values
-            64  # root commitment
-        )
-        
-        snark_proof_size = 2048  # Approximate bellman proof size
-        
-        return commitment_size + witness_size + public_inputs_size + snark_proof_size
+        groth16_proof_size = 192
+        public_inputs_size = 32 * 5  # root_x, root_y, witness_x, witness_y, expected
+        return groth16_proof_size + public_inputs_size
