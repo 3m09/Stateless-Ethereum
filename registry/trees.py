@@ -10,10 +10,12 @@ class TreeNode:
         self.type = 'non_leaf'                                           
 
 class BaseTree:
-    def __init__(self, width, setup_object=None):
+    def __init__(self, width, db_path, hash_fn=None, setup_object=None):
         self.width = width
+        self.db_path = db_path
         self.root = TreeNode(width)
         self.setup_object = setup_object
+        self.hash_fn = hash_fn
 
     def insert(self, key, value):
         raise NotImplementedError

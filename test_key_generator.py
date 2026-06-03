@@ -1,6 +1,6 @@
 import random
 
-rng = 500  # how many random numbers to generate
+rng = 5  # how many random numbers to generate
 
 with open('input.txt', 'w') as f:
     f.write('[')

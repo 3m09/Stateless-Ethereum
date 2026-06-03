@@ -1,6 +1,6 @@
 import rlp
 from .nibble_path import NibblePath
-from .hash import keccak_hash
+from .hash import keccak_hash, poseidon_hash_bytes
 
 
 def _prepare_reference_for_usage(ref):
@@ -18,9 +18,21 @@ def _prepare_reference_for_encoding(ref):
 
     return ref
 
+def _hash_data(data: bytes, hash_fn: str = "keccak") -> bytes:
+    if hash_fn == "keccak":
+        return keccak_hash(data)
+    if hash_fn == "poseidon":
+        return poseidon_hash_bytes(data)
+    raise ValueError("hash_fn must be 'keccak' or 'poseidon'")
+
+
 
 class Node:
     EMPTY_HASH = keccak_hash(rlp.encode(b''))
+
+    @staticmethod
+    def empty_hash(hash_fn: str = "keccak") -> bytes:
+        return _hash_data(rlp.encode(b''), hash_fn)
 
     class Leaf:
         def __init__(self, path, data):
@@ -52,42 +64,69 @@ class Node:
         """ Decodes node from RLP. """
         data = rlp.decode(encoded_data)
 
-        assert len(data) == 17 or len(data) == 2   # TODO throw exception
+        # Branch has (width + 1) entries; Leaf/Extension have 2
+        if len(data) == 2:
+            path, is_leaf = NibblePath.decode_with_type(data[0])
+            if is_leaf:
+                return Node.Leaf(path, data[1])
+            else:
+                ref = _prepare_reference_for_usage(data[1])
+                return Node.Extension(path, ref)
 
-        if len(data) == 17:
-            branches = list(map(_prepare_reference_for_usage, data[:16]))
-            node_data = data[16]
-            return Node.Branch(branches, node_data)
+        if len(data) < 3:
+            raise ValueError("Invalid RLP node length")
 
-        path, is_leaf = NibblePath.decode_with_type(data[0])
-        if is_leaf:
-            return Node.Leaf(path, data[1])
-        else:
-            ref = _prepare_reference_for_usage(data[1])
-            return Node.Extension(path, ref)
+        branches = list(map(_prepare_reference_for_usage, data[:-1]))
+        node_data = data[-1]
+        return Node.Branch(branches, node_data)
 
-    def into_reference(node):
+    # def into_reference(node):
+    #     """
+    #     Returns reference to the given node.
+
+    #     If length of encoded node is less than 32 bytes, the reference is encoded node itseld (In-place reference).
+    #     Otherwise reference is keccak hash of encoded node.
+    #     """
+    #     encoded_node = node.encode()
+    #     if len(encoded_node) < 32:
+    #         return encoded_node
+    #     else:
+    #         return keccak_hash(encoded_node)
+    
+    # @staticmethod
+    # def into_reference_from_encoded(encoded_node: bytes):
+    #     """
+    #     Given an encoded node, return what its reference should be.
+    #     - If encoded node is >= 32 bytes: hash it
+    #     - Otherwise: return the encoded bytes directly (inline)
+    #     """
+    #     if len(encoded_node) >= 32:
+    #         return keccak_hash(encoded_node)
+    #     else:
+    #         return encoded_node
+
+    def into_reference(node, hash_fn: str = "keccak"):
         """
         Returns reference to the given node.
 
-        If length of encoded node is less than 32 bytes, the reference is encoded node itseld (In-place reference).
-        Otherwise reference is keccak hash of encoded node.
+        If length of encoded node is less than 32 bytes, the reference is encoded node itself (In-place reference).
+        Otherwise reference is hash of encoded node.
         """
         encoded_node = node.encode()
         if len(encoded_node) < 32:
             return encoded_node
         else:
-            return keccak_hash(encoded_node)
+            return _hash_data(encoded_node, hash_fn)
     
     @staticmethod
-    def into_reference_from_encoded(encoded_node: bytes):
+    def into_reference_from_encoded(encoded_node: bytes, hash_fn: str = "keccak"):
         """
         Given an encoded node, return what its reference should be.
         - If encoded node is >= 32 bytes: hash it
         - Otherwise: return the encoded bytes directly (inline)
         """
         if len(encoded_node) >= 32:
-            return keccak_hash(encoded_node)
+            return _hash_data(encoded_node, hash_fn)
         else:
             return encoded_node
-    
+

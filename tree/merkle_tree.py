@@ -5,7 +5,7 @@ from registry.trees import BaseTree, register_tree
 #from registry.trees import TreeNode
 from merkle.nibble_path import NibblePath
 from merkle.node import Node
-from merkle.hash import keccak_hash
+from merkle.hash import keccak_hash, poseidon_hash_bytes
 import plyvel
 
 
@@ -22,27 +22,31 @@ class MerklePatriciaTrie(BaseTree):
     - Uses an in-memory dict as storage (hash -> encoded node).
     """
 
-    def __init__(self, width=16, setup_object=None, secure=False, storage=None):
+    def __init__(self, width=16, db_path='./merkle', hash_fn="keccak", setup_object=None, secure=False, storage=None):
         # BaseTree doesn't have __init__, so we don't call super().__init__()
         # We manage our own state for MPT
-        if width != 16:
-            raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
+        # if width != 16:
+        #     raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
 
-        super().__init__(width=width, setup_object=setup_object)
+        super().__init__(width=width, db_path=db_path, hash_fn=hash_fn, setup_object=setup_object)
 
         # self._storage is currently unused because of plyvel DB usage
         # # Underlying node storage: hash -> encoded node
         # self._storage = storage if storage is not None else {}
 
-        self.db = plyvel.DB('./merkle/merkle_state_db', create_if_missing=True)
+        self.db = plyvel.DB(db_path + '/merkle_state_db', create_if_missing=True)
 
         # Secure mode means: hash keys with keccak256 before turning into nibbles.
         self._secure = secure
 
         # MPT root reference (bytes or None).
         # This is the "real" root of the trie; we mirror it in self.root.value.
-        self._root_ref = open('./roots/merkle_root_ref.bin', 'rb').read() if os.path.exists('./roots/merkle_root_ref.bin') else None
+        self._root_ref = open(db_path + '/merkle_root_ref.bin', 'rb').read() if os.path.exists(db_path + '/merkle_root_ref.bin') else None
         self.root.value = self._root_ref
+        self.hash_fn_name = hash_fn
+        self.hash = keccak_hash if hash_fn == "keccak" else poseidon_hash_bytes if hash_fn == "poseidon" else None
+        if self.hash is None:
+            raise ValueError("hash_fn must be 'keccak' or 'poseidon'")
 
     # -------------------------------------------------------------------------
     # Public API (BaseTree)
@@ -64,13 +68,13 @@ class MerklePatriciaTrie(BaseTree):
         encoded_value = bytes(value)
 
         if self._secure:
-            encoded_key = keccak_hash(encoded_key)
+            encoded_key = self.hash(encoded_key)
 
         path = NibblePath(encoded_key)
         new_root_ref = self._update(self._root_ref, path, encoded_value)
 
         self._root_ref = new_root_ref
-        with open('./roots/merkle_root_ref.bin', 'wb') as f:
+        with open(self.db_path + '/merkle_root_ref.bin', 'wb') as f:
             f.write(self._root_ref)
         self.root.value = self._root_ref  # mirror into BaseTree root node
 
@@ -90,7 +94,7 @@ class MerklePatriciaTrie(BaseTree):
 
         encoded_key = bytes(key)
         if self._secure:
-            encoded_key = keccak_hash(encoded_key)
+            encoded_key = self.hash(encoded_key)
 
         path = NibblePath(encoded_key)
         node = self._get(self._root_ref, path)
@@ -120,7 +124,7 @@ class MerklePatriciaTrie(BaseTree):
 
         encoded_key = bytes(key)
         if self._secure:
-            encoded_key = keccak_hash(encoded_key)
+            encoded_key = self.hash(encoded_key)
 
         path = NibblePath(encoded_key)
         proof_nodes = []
@@ -202,6 +206,85 @@ class MerklePatriciaTrie(BaseTree):
     # Helper: MPT root hash (optional but useful)
     # -------------------------------------------------------------------------
 
+    def _zk_encode(self, node):
+        """ZK-friendly fixed width serialization using explicit chunk lengths"""
+        if isinstance(node, Node.Leaf):
+            path_bytes = node.path.encode(is_leaf=True)
+            safe_data = node.data if node.data else b''
+            
+            return (
+                (1).to_bytes(32, 'big') +                               # Chunk 1: Type
+                len(path_bytes).to_bytes(32, 'big') +                   # Chunk 2: Path Length
+                path_bytes.ljust(32, b'\0') +                           # Chunk 3: Path Data
+                len(safe_data).to_bytes(32, 'big') +                    # Chunk 4: Data Length
+                safe_data.ljust(32, b'\0')                              # Chunk 5: Data Value
+            )
+            
+        elif isinstance(node, Node.Extension):
+            path_bytes = node.path.encode(is_leaf=False)
+            
+            return (
+                (2).to_bytes(32, 'big') +                               # Chunk 1: Type
+                len(path_bytes).to_bytes(32, 'big') +                   # Chunk 2: Path Length
+                path_bytes.ljust(32, b'\0') +                           # Chunk 3: Path Data
+                node.next_ref                                           # Chunk 4: Next Ref (Exactly 32 bytes)
+            )
+            
+        elif isinstance(node, Node.Branch):
+            res = (3).to_bytes(32, 'big')                               # Chunk 1: Type
+            
+            # Chunks 2-17: Branches (Exactly 32 bytes each)
+            for b in node.branches:
+                # If populated, use the exact 32-byte hash. If empty, use 32 bytes of zeros.
+                res += b if b else b'\0'*32
+                
+            # Chunks 18-19: Branch Data
+            safe_data = node.data if node.data else b''
+            res += len(safe_data).to_bytes(32, 'big')
+            res += safe_data.ljust(32, b'\0')
+            return res
+            
+        raise TypeError("Unknown node type")
+
+    def _zk_decode(self, data):
+        """Deserialize fixed width to Node without destructive stripping"""
+        node_type = int.from_bytes(data[:32], 'big')
+        
+        if node_type == 1:
+            # Safely slice path using the explicit length
+            path_len = int.from_bytes(data[32:64], 'big')
+            path_bytes = data[64 : 64 + path_len]
+            path, _ = NibblePath.decode_with_type(path_bytes)
+            
+            # Safely slice data using the explicit length
+            data_len = int.from_bytes(data[96:128], 'big')
+            data_val = data[128 : 128 + data_len]
+            return Node.Leaf(path, data_val)
+            
+        elif node_type == 2:
+            path_len = int.from_bytes(data[32:64], 'big')
+            path_bytes = data[64 : 64 + path_len]
+            path, _ = NibblePath.decode_with_type(path_bytes)
+            
+            # Extract the exact 32-byte reference without altering it
+            next_ref = data[96:128] 
+            return Node.Extension(path, next_ref)
+            
+        elif node_type == 3:
+            branches = []
+            for i in range(16):
+                # Extract exact 32-byte chunk
+                b_bytes = data[32 + (i * 32) : 64 + (i * 32)]
+                
+                # If it's perfectly empty (32 zeros), mark as b''. Otherwise keep the exact hash.
+                branches.append(b_bytes if b_bytes != b'\0'*32 else b'')
+                
+            data_len = int.from_bytes(data[544:576], 'big')
+            data_val = data[576 : 576 + data_len]
+            return Node.Branch(branches, data_val)
+            
+        raise ValueError(f"Unknown ZK node type: {node_type}")
+
     def root_hash(self) -> bytes:
         """
         Returns the hash of the trie's root node.
@@ -216,26 +299,15 @@ class MerklePatriciaTrie(BaseTree):
         elif len(self._root_ref) == 32:
             return self._root_ref
         else:
-            return keccak_hash(self._root_ref)
+            return self.hash(self._root_ref)
 
-    # -------------------------------------------------------------------------
-    # Internal helpers (adapted directly from your previous MPT)
-    # -------------------------------------------------------------------------
-
-    # def _get_node(self, node_ref):
-    #     """
-    #     Turn a node reference (hash or inline encoded node) into a Node object.
-    #     """
-    #     if len(node_ref) == 32:
-    #         raw_node = self._storage[node_ref]
-    #     else:
-    #         raw_node = node_ref
-    #     return Node.decode(raw_node)
 
     def _get_node(self, reference):
         data = self.db.get(reference)
         if data is None:
             raise KeyError("Node not found: " + reference.hex())
+        if self.hash_fn_name == "poseidon":
+            return self._zk_decode(data)
         return Node.decode(data)
 
 
@@ -413,10 +485,16 @@ class MerklePatriciaTrie(BaseTree):
     #     return reference
 
     def _store_node(self, node):
-        reference = Node.into_reference(node)      # returns raw bytes
-        if len(reference) == 32:                   # hashed node → store
-            encoded = node.encode()                # raw bytes
-            self.db.put(reference, encoded)        # <--- LevelDB write
+        if self.hash_fn_name == "poseidon":
+            encoded = self._zk_encode(node)
+            # You may also need to bypass Node.into_reference if it forces RLP
+            reference = self.hash(encoded) 
+        else:
+            reference = Node.into_reference(node, self.hash_fn_name)
+            encoded = node.encode()
+
+        if len(reference) == 32:
+            self.db.put(reference, encoded)
         return reference
     
     def get_proof_size(self, commitments, root_hash: bytes) -> int:

@@ -19,9 +19,10 @@ def verify_proof(method, proof, root, keys, values, setup=None):
     verifier = verifier_class(setup)
     return verifier.verify_proof(values, keys, root, proof)
 
-def generate_tree(method, width, hash_fn=None, setup=None):
+def generate_tree(method, width, tree_id, hash_fn=None, setup=None):
     tree_class = TREE_REGISTRY[method]
-    tree = tree_class(width, db_path="", hash_fn=hash_fn, setup_object=setup)
+    db_path = f'./tree_storage/{tree_id}'
+    tree = tree_class(width, db_path=db_path, hash_fn=hash_fn, setup_object=setup)
     return tree
 
 def generate_setup(method, secret, width=None):
@@ -47,7 +48,7 @@ def bytes_to_int(b):
     return int.from_bytes(b, byteorder='big')
 
 def test():
-    global_setup = json.load(open("global_setup.json"))
+    global_setup = json.load(open("proving_setup.json"))
     
     WIDTH = global_setup["WIDTH"]
     KEY_LENGTH = global_setup["KEY_LENGTH"]
@@ -59,6 +60,7 @@ def test():
     SETUP_TYPE = global_setup["SETUP_TYPE"]
     KEYS_TO_PROVE = global_setup["KEYS_TO_PROVE"]
     HASH_FN = global_setup["HASH_FN"]
+    TREE_ID = global_setup["TREE_ID"]
 
     setup_object = generate_setup(SETUP_TYPE, SECRET, WIDTH)
     print("Generated setup")
@@ -69,60 +71,46 @@ def test():
 
     print("Loaded random test data")
 
-    data_tree = generate_tree(TREE_TYPE, WIDTH, hash_fn=HASH_FN, setup=setup_object)
+    data_tree = generate_tree(TREE_TYPE, WIDTH, TREE_ID, hash_fn=HASH_FN, setup=setup_object)
 
     print("Generated data tree")
 
-    for idx, (k, v) in enumerate(data.items()):
-        if idx % 1000 == 0:
-            print(f" Inserting key of index: {idx}")
-        # convert key string -> bytes 
-        key_bytes = hex_to_bytes(k, KEY_LENGTH)
-
-        val_bytes = hex_to_bytes(v, VALUE_LENGTH)
-        #v = bytes_to_int(val_bytes)
-
-        # insert into tree
-        #print("Inserting key:", k, "value:", int(v, 16))
-        data_tree.insert(key_bytes, val_bytes)
-    print("Inserted data into tree")
-
-    # key_bytes = [hex_to_bytes(k, KEY_LENGTH) for k in KEYS_TO_PROVE]
-    # # paths_to_prove = [data_tree._key_to_path(k) for k in key_bytes]  
-    # # paths_to_prove = None 
-    # a = time.time()
+    key_bytes = [hex_to_bytes(k, KEY_LENGTH) for k in KEYS_TO_PROVE]
+    # paths_to_prove = [data_tree._key_to_path(k) for k in key_bytes]  
+    # paths_to_prove = None 
+    a = time.time()
 
 
-    # # proof = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
-    # # print('Generated proof:', proof)
-    # # print(proof.keys())
-    # # with open('proof', 'wb') as f:
-    # #     pickle.dump(proof, f)
+    # proof = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
+    # print('Generated proof:', proof)
+    # print(proof.keys())
+    # with open('proof', 'wb') as f:
+    #     pickle.dump(proof, f)
 
-    # # -------------------------snark boundary-------------------------
+    # -------------------------snark boundary-------------------------
 
-    # proof, proof_size = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
-    # commitments, w = proof
-    # proving_time = time.time() - a
-    # print("Generated proof in %.3f seconds" % (proving_time))
-    # print('-------------------')
+    proof, proof_size = generate_proof(PROVER_TYPE, data_tree, key_bytes, setup_object)
+    commitments, w = proof
+    proving_time = time.time() - a
+    print("Generated proof in %.3f seconds" % (proving_time))
+    print('-------------------')
 
-    # print("Proof size:")
-    # print(proof_size, "bytes")
+    print("Proof size:")
+    print(proof_size, "bytes")
 
 
-    # print("Printing root")
-    # print(data_tree.root.value)
+    print("Printing root")
+    print(data_tree.root.value)
     
-    # a = time.time()
+    a = time.time()
 
-    # root_data = get_root_data(TREE_TYPE, data_tree.root)
+    root_data = get_root_data(TREE_TYPE, data_tree.root)
     
-    # assert verify_proof(VERIFIER_TYPE, (commitments, w), root_data, key_bytes, [hex_to_bytes(data[k], VALUE_LENGTH) for k in KEYS_TO_PROVE], setup_object)
+    assert verify_proof(VERIFIER_TYPE, (commitments, w), root_data, key_bytes, [hex_to_bytes(data[k], VALUE_LENGTH) for k in KEYS_TO_PROVE], setup_object)
 
-    # verification_time = time.time() - a
-    # print("Verified proof in %.3f seconds" % (verification_time))
-    # # Save to CSV
+    verification_time = time.time() - a
+    print("Verified proof in %.3f seconds" % (verification_time))
+    # Save to CSV
     # csv_file = 'results.csv'
     # fieldnames = ['datetime', 'WIDTH', 'KEY_LENGTH', 'VALUE_LENGTH', 'SECRET', 'TREE_TYPE', 'PROVER_TYPE', 'VERIFIER_TYPE', 'SETUP_TYPE', 'num_of_KEYS_TO_PROVE', 'proof_size', 'proving_time', 'verification_time']
     # row = {

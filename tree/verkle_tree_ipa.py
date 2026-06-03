@@ -1,27 +1,24 @@
 from registry.trees import BaseTree, register_tree
 from registry.trees import TreeNode
-from verkle.commitment_scheme import commit
+from verkle.commitment_scheme_ipa import commit
 from verkle.hash_scheme import hash_point_to_field
 from verkle.utils.key_to_path import _key_to_path
-from verkle.serialization import serialize_verkle_node_flexible, deserialize_verkle_node_flexible, serialize_verkle_leaf_flexible, deserialize_verkle_leaf_flexible
+from verkle.serialization import serialize_verkle_node_flexible, deserialize_verkle_node_flexible
 import plyvel, os
-import zlib
 
-@register_tree("verkle")
-class VerkleTree(BaseTree):
+@register_tree("verkle_ipa")
+class VerkleTreeIPA(BaseTree):
 
-    def __init__(self, width, db_path='./verkle', hash_fn=None, setup_object=None):
-        super().__init__(width, db_path=db_path, hash_fn=hash_fn, setup_object=setup_object)
-        self.db = plyvel.DB(self.db_path + '/verkle_state_db', create_if_missing=True)
-        self._root_ref = open(self.db_path + '/verkle_root_ref.bin', 'rb').read() if os.path.exists(self.db_path + '/verkle_root_ref.bin') else None
+    def __init__(self, width, setup_object):
+        super().__init__(width, setup_object)
+        self.db = plyvel.DB('./verkle/verkle_state_db_ipa', create_if_missing=True)
+        self._root_ref = open('./roots/verkle_root_ref_ipa.bin', 'rb').read() if os.path.exists('./roots/verkle_root_ref_ipa.bin') else None
         if self._root_ref:
             self.root = self._make_tree_node(self._root_ref)
 
     def insert(self, key, value):
         if not isinstance(key, (bytes, bytearray)):
             raise TypeError("Key must be bytes or bytearray")
-        
-        # value = int.from_bytes(value, byteorder='big')
 
         path = _key_to_path(self.width, key)
 
@@ -32,9 +29,6 @@ class VerkleTree(BaseTree):
             if node.children[path[i]] is None:
                 node = TreeNode(self.width)
             else:
-                # print('making tree node for child at index', path[i])
-                # print('child reference:', node.children[path[i]].hex())
-                # print('commitment to children:', node.commitment_to_children)
                 node = self._make_tree_node(node.children[path[i]])
             stack.append(node)
 
@@ -46,9 +40,7 @@ class VerkleTree(BaseTree):
         while stack:
             current = stack.pop()
             parent = stack[-1] if stack else None
-            # node = current
-            # if current.type == 'leaf':
-            #     print('found leaf node in the while loop:')
+
             child_values = []
             all_Child_none_flag = True
             for child in current.children:
@@ -58,9 +50,8 @@ class VerkleTree(BaseTree):
                     all_Child_none_flag = False
                     child_values.append(int.from_bytes(child, byteorder='big'))
             if all_Child_none_flag:
-                print('all children are None, skipping commit')
-            
-            # print("Committing at level with child values:", child_values)
+                pass
+
             current.commitment_to_children = commit(child_values, self.setup_object)
             current.value = hash_point_to_field(current.commitment_to_children, self.setup_object.MODULUS).to_bytes(32, 'big')
             self._store_node(current)
@@ -69,7 +60,7 @@ class VerkleTree(BaseTree):
                 parent.children[path_idx] = current.value
             node = current
 
-        with open(self.db_path + '/verkle_root_ref.bin', 'wb') as f:
+        with open('./roots/verkle_root_ref_ipa.bin', 'wb') as f:
             f.write(node.value)
         self._root_ref = node.value
         self.root = node
@@ -102,8 +93,6 @@ class VerkleTree(BaseTree):
                 return None   
             node = self._make_tree_node(node.children[path[i]])
             proof.append(node.commitment_to_children)
-
-            # excluding the root and leaf commitments
         return proof
     
     def _store_node(self, node):
@@ -126,45 +115,4 @@ class VerkleTree(BaseTree):
             print('Computed:', node.value.hex())
             print('Stored:', reference.hex())
         node.children = child_hashes
-        # print('printing commitment to children', comm)
         return node
-
-
-    def get_proof_size(self, commitments, final_commitment):
-        total_size = 0
-        # Serialize each list of intermediate commitments per key
-        for key_commitments in commitments:
-            print("key commitments length:", len(key_commitments))
-            for comm in key_commitments:
-                # Serialize each commitment (x, y) as bytes
-                data = bytearray()
-                x_int = int(comm[0])
-                y_int = int(comm[1])
-                
-                # Calculate minimal byte length needed
-                x_len = (x_int.bit_length() + 7) // 8 or 1
-                y_len = (y_int.bit_length() + 7) // 8 or 1
-                
-                x_bytes = x_int.to_bytes(x_len, 'big')
-                y_bytes = y_int.to_bytes(y_len, 'big')
-                
-                data += x_bytes
-                data += y_bytes
-                total_size += len(data)
-        # Serialize the final commitment
-        data = bytearray()
-        x_int = int(final_commitment[0])
-        y_int = int(final_commitment[1])
-        
-        # Calculate minimal byte length needed
-        x_len = (x_int.bit_length() + 7) // 8 or 1
-        y_len = (y_int.bit_length() + 7) // 8 or 1
-        
-        x_bytes = x_int.to_bytes(x_len, 'big')
-        y_bytes = y_int.to_bytes(y_len, 'big')
-        
-        data += x_bytes
-        data += y_bytes
-        total_size += len(data)
-        return total_size
-
