@@ -136,15 +136,81 @@ The state root gives one compact fingerprint of the entire Ethereum state.
 \end{block}
 \end{frame}
 
-\begin{frame}{Why a Tree Structure is Needed}
-A simple database is not enough for Ethereum.
 
+
+\begin{frame}{What is a Proof in Blockchain?}
 \begin{itemize}
+    \item In blockchain, a \textbf{proof} is a way to show that some data is valid without showing the entire database.
+    \item For example, instead of checking all account records, a node should be able to verify only the required information.
+    \item A proof helps answer questions like: \textit{Does this account really have this balance?} or \textit{Is this value really part of the current state?}
+    \item So, a proof is basically a compact way to convince others that a value belongs to the blockchain's current state.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{In simple words:} A proof is evidence that a value is correct.
+\end{frame}
+
+\begin{frame}{How Does Ethereum Verify a Value?}
+\begin{itemize}
+    \item Ethereum stores a compact summary of the whole state in the form of the \textbf{state root}.
+    \item If someone wants to prove a value, they provide the needed nodes from the tree structure.
+    \item A verifier uses those nodes to recompute the path up to the root.
+    \item If the recomputed root matches the known \textbf{state root}, the value is accepted as correct.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{So the idea is:}
+\begin{center}
+\textbf{Value + Proof + State Root $\rightarrow$ Verification}
+\end{center}
+
+\vspace{0.2cm}
+This is why Ethereum needs an authenticated tree structure.
+\end{frame}
+
+\begin{frame}{What is a Witness?}
+\begin{itemize}
+    \item In Ethereum, the set of proof data provided for verification is often called a \textbf{witness}.
+    \item A witness contains the information needed to prove that a state value is part of the current Ethereum state.
+    \item So instead of sending the whole state, we only send the relevant proof information.
+    \item This idea becomes very important when we talk about \textbf{stateless Ethereum}.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{In simple words:} A witness is the proof package used for verification.
+\end{frame}
+
+\begin{frame}{What is Stateless Ethereum?}
+\begin{itemize}
+    \item In today's Ethereum, most nodes are \textbf{stateful}, which means they store the full blockchain state locally.
+    \item In a \textbf{stateless} design, a node does not need to keep the whole state all the time.
+    \item Instead, when verifying a block or transaction, it uses the \textbf{state root} together with the required \textbf{witness}.
+    \item So the node can verify correctness without storing the entire state on disk.
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{In short:} Stateless Ethereum means verifying state changes without permanently storing the full state.
+\end{frame}
+
+\begin{frame}{Why Do We Want Ethereum to be Stateless?}
+\begin{itemize}
+    \item Ethereum's state keeps growing over time.
+    \item Because of this, running a full node requires more storage, more synchronization time, and stronger hardware.
+    \item This makes participation harder for ordinary users and increases centralization risk.
+    \item Statelessness aims to reduce this burden by allowing verification through compact proofs instead of full state storage.
+\end{itemize}
+
+\vspace{0.3cm}
+\begin{block}{Main idea}
+Make Ethereum verification lighter, faster to sync, and more accessible to more participants.
+\end{block}
+\end{frame}
+\begin{frame}{Why Do We Need a Tree Structure?}
+    \begin{itemize}
     \item We need to find accounts and storage values efficiently
     \item We need a secure way to prove that a value is correct
     \item We need one compact root that represents the whole state
 \end{itemize}
-
 \vspace{0.3cm}
 \textbf{That is why Ethereum uses a tree-based authenticated data structure called:}
 \begin{center}
@@ -152,7 +218,7 @@ A simple database is not enough for Ethereum.
 \end{center}
 \end{frame}
 
-\end{frame}
+
 % --- Slide 1: Current State Trie (MPT) ---
 % \begin{frame}{1.1 The Ethereum State: Merkle Patricia Trie (MPT)}
 % The Ethereum State is a mapping of \textbf{Addresses} to \textbf{Account States}. It uses a modified Merkle Patricia Trie.
@@ -234,7 +300,7 @@ The Ethereum State is a mapping of \textbf{Addresses} to \textbf{Account States}
     \end{tabular}
     \pause
     \begin{itemize}
-        Simple Prefix tree
+        \item Simple Prefix tree
         \includegraphics[width=0.5\textwidth]{prefix_tree.png}
     \end{itemize}
     % \includegraphics[width=0.5\textwidth]{prefix_tree.png}
