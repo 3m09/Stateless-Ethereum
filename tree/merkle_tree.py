@@ -145,8 +145,14 @@ class MerklePatriciaTrie(BaseTree):
             # Add this node's encoding to the proof
             proof_nodes.append(encoded_node)
 
-            # Decode into a structured Node instance
-            node = Node.decode(encoded_node)
+            # # Decode into a structured Node instance
+            # node = Node.decode(encoded_node)
+
+            # Decode into a structured Node instance using the correct decoder
+            if self.hash_fn_name == "poseidon":
+                node = self._zk_decode(encoded_node)
+            else:
+                node = Node.decode(encoded_node)
 
             # Leaf: must match exactly the remaining path
             if isinstance(node, Node.Leaf):
@@ -206,57 +212,48 @@ class MerklePatriciaTrie(BaseTree):
     # Helper: MPT root hash (optional but useful)
     # -------------------------------------------------------------------------
 
-    def _zk_encode(self, node):
-        """ZK-friendly fixed width serialization using explicit chunk lengths"""
+    def _zk_encode(self, node): # Remove 'self' in the prover script
+        """Canonical 32-byte aligned ZK serialization"""
         if isinstance(node, Node.Leaf):
             path_bytes = node.path.encode(is_leaf=True)
             safe_data = node.data if node.data else b''
-            
             return (
-                (1).to_bytes(32, 'big') +                               # Chunk 1: Type
-                len(path_bytes).to_bytes(32, 'big') +                   # Chunk 2: Path Length
-                path_bytes.ljust(32, b'\0') +                           # Chunk 3: Path Data
-                len(safe_data).to_bytes(32, 'big') +                    # Chunk 4: Data Length
-                safe_data.ljust(32, b'\0')                              # Chunk 5: Data Value
+                (1).to_bytes(32, 'big') +                               # Chunk 0
+                len(path_bytes).to_bytes(32, 'big') +                   # Chunk 1
+                path_bytes.ljust(32, b'\0') +                           # Chunk 2
+                len(safe_data).to_bytes(32, 'big') +                    # Chunk 3
+                safe_data.ljust(32, b'\0')                              # Chunk 4
             )
             
         elif isinstance(node, Node.Extension):
             path_bytes = node.path.encode(is_leaf=False)
-            
             return (
-                (2).to_bytes(32, 'big') +                               # Chunk 1: Type
-                len(path_bytes).to_bytes(32, 'big') +                   # Chunk 2: Path Length
-                path_bytes.ljust(32, b'\0') +                           # Chunk 3: Path Data
-                node.next_ref                                           # Chunk 4: Next Ref (Exactly 32 bytes)
+                (2).to_bytes(32, 'big') +                               # Chunk 0
+                len(path_bytes).to_bytes(32, 'big') +                   # Chunk 1
+                path_bytes.ljust(32, b'\0') +                           # Chunk 2
+                node.next_ref                                           # Chunk 3
             )
             
         elif isinstance(node, Node.Branch):
-            res = (3).to_bytes(32, 'big')                               # Chunk 1: Type
-            
-            # Chunks 2-17: Branches (Exactly 32 bytes each)
+            res = (3).to_bytes(32, 'big')                               # Chunk 0
             for b in node.branches:
-                # If populated, use the exact 32-byte hash. If empty, use 32 bytes of zeros.
-                res += b if b else b'\0'*32
-                
-            # Chunks 18-19: Branch Data
+                res += b if b else b'\0'*32                             # Chunks 1-16
             safe_data = node.data if node.data else b''
-            res += len(safe_data).to_bytes(32, 'big')
-            res += safe_data.ljust(32, b'\0')
+            res += len(safe_data).to_bytes(32, 'big')                   # Chunk 17
+            res += safe_data.ljust(32, b'\0')                           # Chunk 18
             return res
             
         raise TypeError("Unknown node type")
 
-    def _zk_decode(self, data):
-        """Deserialize fixed width to Node without destructive stripping"""
+    def _zk_decode(self, data): # Remove 'self' in the prover script
+        """Deserialize recognizing exact 32-byte boundaries"""
         node_type = int.from_bytes(data[:32], 'big')
         
         if node_type == 1:
-            # Safely slice path using the explicit length
             path_len = int.from_bytes(data[32:64], 'big')
             path_bytes = data[64 : 64 + path_len]
             path, _ = NibblePath.decode_with_type(path_bytes)
             
-            # Safely slice data using the explicit length
             data_len = int.from_bytes(data[96:128], 'big')
             data_val = data[128 : 128 + data_len]
             return Node.Leaf(path, data_val)
@@ -266,17 +263,13 @@ class MerklePatriciaTrie(BaseTree):
             path_bytes = data[64 : 64 + path_len]
             path, _ = NibblePath.decode_with_type(path_bytes)
             
-            # Extract the exact 32-byte reference without altering it
             next_ref = data[96:128] 
             return Node.Extension(path, next_ref)
             
         elif node_type == 3:
             branches = []
             for i in range(16):
-                # Extract exact 32-byte chunk
                 b_bytes = data[32 + (i * 32) : 64 + (i * 32)]
-                
-                # If it's perfectly empty (32 zeros), mark as b''. Otherwise keep the exact hash.
                 branches.append(b_bytes if b_bytes != b'\0'*32 else b'')
                 
             data_len = int.from_bytes(data[544:576], 'big')
