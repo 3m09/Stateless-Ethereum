@@ -144,14 +144,37 @@ class VerkleMultiproofGenerator(BaseProver):
         
         return proof_dict, witness
 
-    def proof_size(self, proof_dict, witness) -> int:
-        witness_size = 48
-        num_commitments = len(proof_dict['commitments_with_openings'])
-        num_openings = proof_dict['num_openings']
+    # def proof_size(self, proof_dict, witness) -> int:
+    #     witness_size = 48
+    #     num_commitments = len(proof_dict['commitments_with_openings'])
+    #     num_openings = proof_dict['num_openings']
         
-        commitments_size = num_commitments * 64
-        openings_size = num_openings * 36
+    #     commitments_size = num_commitments * 64
+    #     openings_size = num_openings * 36
+    #     values_size = len(proof_dict['values']) * 32
+    #     paths_size = sum(len(p) for p in proof_dict['key_paths'])
+        
+    #     return witness_size + commitments_size + openings_size + values_size + paths_size
+
+    def proof_size(self, proof_dict, witness) -> int:
+        # BLS12-381 Compressed G1 Point = 48 bytes
+        # BLS12-381 Scalar Field Element = 32 bytes
+        
+        # 1. Witness (Usually a single evaluation point or evaluation proof)
+        witness_size = 48 
+        
+        # 2. Commitments (Compressed points)
+        num_commitments = len(proof_dict['commitments_with_openings'])
+        commitments_size = num_commitments * 48 
+        
+        # 3. Openings (Assuming scalar values like 'z' or 'y')
+        num_openings = proof_dict['num_openings']
+        openings_size = num_openings * 32
+        
+        # 4. Leaf Values
         values_size = len(proof_dict['values']) * 32
+        
+        # 5. Paths (Keys)
         paths_size = sum(len(p) for p in proof_dict['key_paths'])
         
         return witness_size + commitments_size + openings_size + values_size + paths_size

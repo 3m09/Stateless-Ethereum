@@ -1,11 +1,11 @@
 {
-    "TREE_TYPE": "verkle",
-    "HASH_FN": "",
-    "TREE_ID": "f878a524-d22e-46f5-a2f1-8d1e10e5f55c",
-    "PROVER_TYPE": "verkle",
-    "VERIFIER_TYPE" : "verkle",
-    "SETUP_TYPE": "verkle_kzg",
-    "WIDTH": 256,
+    "TREE_TYPE": "merkle",
+    "HASH_FN": "keccak",
+    "TREE_ID": "7be66169-d028-4a08-96f4-49e9a6507d12",
+    "PROVER_TYPE": "merkle",
+    "VERIFIER_TYPE" : "merkle",
+    "SETUP_TYPE": "",
+    "WIDTH": 16,
     "SECRET": 1927409816240961209460912649124,
-    "NUM_KEYS_TO_PROVE": 5
+    "NUM_KEYS_TO_PROVE": 1
 }

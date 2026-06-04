@@ -130,41 +130,55 @@ class VerkleTree(BaseTree):
         return node
 
 
+    # def get_proof_size(self, commitments, final_commitment):
+    #     total_size = 0
+    #     # Serialize each list of intermediate commitments per key
+    #     for key_commitments in commitments:
+    #         print("key commitments length:", len(key_commitments))
+    #         for comm in key_commitments:
+    #             # Serialize each commitment (x, y) as bytes
+    #             data = bytearray()
+    #             x_int = int(comm[0])
+    #             y_int = int(comm[1])
+                
+    #             # Calculate minimal byte length needed
+    #             x_len = (x_int.bit_length() + 7) // 8 or 1
+    #             y_len = (y_int.bit_length() + 7) // 8 or 1
+                
+    #             x_bytes = x_int.to_bytes(x_len, 'big')
+    #             y_bytes = y_int.to_bytes(y_len, 'big')
+                
+    #             data += x_bytes
+    #             data += y_bytes
+    #             total_size += len(data)
+    #     # Serialize the final commitment
+    #     data = bytearray()
+    #     x_int = int(final_commitment[0])
+    #     y_int = int(final_commitment[1])
+        
+    #     # Calculate minimal byte length needed
+    #     x_len = (x_int.bit_length() + 7) // 8 or 1
+    #     y_len = (y_int.bit_length() + 7) // 8 or 1
+        
+    #     x_bytes = x_int.to_bytes(x_len, 'big')
+    #     y_bytes = y_int.to_bytes(y_len, 'big')
+        
+    #     data += x_bytes
+    #     data += y_bytes
+    #     total_size += len(data)
+    #     return total_size
+
     def get_proof_size(self, commitments, final_commitment):
+        COMPRESSED_POINT_SIZE = 48
         total_size = 0
-        # Serialize each list of intermediate commitments per key
+        
         for key_commitments in commitments:
-            print("key commitments length:", len(key_commitments))
-            for comm in key_commitments:
-                # Serialize each commitment (x, y) as bytes
-                data = bytearray()
-                x_int = int(comm[0])
-                y_int = int(comm[1])
-                
-                # Calculate minimal byte length needed
-                x_len = (x_int.bit_length() + 7) // 8 or 1
-                y_len = (y_int.bit_length() + 7) // 8 or 1
-                
-                x_bytes = x_int.to_bytes(x_len, 'big')
-                y_bytes = y_int.to_bytes(y_len, 'big')
-                
-                data += x_bytes
-                data += y_bytes
-                total_size += len(data)
-        # Serialize the final commitment
-        data = bytearray()
-        x_int = int(final_commitment[0])
-        y_int = int(final_commitment[1])
+            # 48 bytes per compressed point
+            total_size += len(key_commitments) * COMPRESSED_POINT_SIZE
+            
+        # Add the final commitment
+        total_size += COMPRESSED_POINT_SIZE 
         
-        # Calculate minimal byte length needed
-        x_len = (x_int.bit_length() + 7) // 8 or 1
-        y_len = (y_int.bit_length() + 7) // 8 or 1
-        
-        x_bytes = x_int.to_bytes(x_len, 'big')
-        y_bytes = y_int.to_bytes(y_len, 'big')
-        
-        data += x_bytes
-        data += y_bytes
-        total_size += len(data)
+        # NOTE: You still need to add path lengths and value lengths to this!
         return total_size
 

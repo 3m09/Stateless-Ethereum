@@ -122,29 +122,27 @@ def test():
     verification_time = time.time() - a
     print("Verified proof in %.3f seconds" % (verification_time))
     # Save to CSV
-    # csv_file = 'results.csv'
-    # fieldnames = ['datetime', 'WIDTH', 'KEY_LENGTH', 'VALUE_LENGTH', 'SECRET', 'TREE_TYPE', 'PROVER_TYPE', 'VERIFIER_TYPE', 'SETUP_TYPE', 'num_of_KEYS_TO_PROVE', 'proof_size', 'proving_time', 'verification_time']
-    # row = {
-    #     'datetime': datetime.now().isoformat(),
-    #     'WIDTH': WIDTH,
-    #     'KEY_LENGTH': KEY_LENGTH,
-    #     'VALUE_LENGTH': VALUE_LENGTH,
-    #     'SECRET': SECRET,
-    #     'TREE_TYPE': TREE_TYPE,
-    #     'PROVER_TYPE': PROVER_TYPE,
-    #     'VERIFIER_TYPE': VERIFIER_TYPE,
-    #     'SETUP_TYPE': SETUP_TYPE,
-    #     'num_of_KEYS_TO_PROVE': len(KEYS_TO_PROVE),
-    #     'proof_size': proof_size,
-    #     'proving_time': proving_time,
-    #     'verification_time': verification_time
-    # }
+    csv_file = 'results.csv'
+    fieldnames = ['datetime', 'WIDTH', 'TREE_TYPE', 'PROVER_TYPE', 'VERIFIER_TYPE', 'SETUP_TYPE', 'NUM_KEYS_TO_PROVE', 'NUM_KEYS_TREE', 'proof_size', 'proving_time', 'verification_time']
+    row = {
+        'datetime': datetime.now().isoformat(),
+        'WIDTH': WIDTH,
+        'TREE_TYPE': TREE_TYPE,
+        'PROVER_TYPE': PROVER_TYPE,
+        'VERIFIER_TYPE': VERIFIER_TYPE,
+        'SETUP_TYPE': SETUP_TYPE,
+        'NUM_KEYS_TO_PROVE': NUM_KEYS_TO_PROVE,
+        'NUM_KEYS_TREE': NUM_KEYS_TREE,
+        'proof_size': proof_size,
+        'proving_time': proving_time,
+        'verification_time': verification_time
+    }
     
-    # with open(csv_file, 'a', newline='') as f:
-    #     writer = csv.DictWriter(f, fieldnames=fieldnames)
-    #     if f.tell() == 0:  # Write header if file is empty
-    #         writer.writeheader()
-    #     writer.writerow(row)
+    with open(csv_file, 'a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if f.tell() == 0:  # Write header if file is empty
+            writer.writeheader()
+        writer.writerow(row)
 
 if __name__ == '__main__':
     test()
