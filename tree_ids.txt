@@ -1,4 +1,5 @@
-1115277d-9567-4f47-bc75-f36417ccd3f3
-aa5ad0f2-e244-49a2-880d-3428a08be050
-0ad14844-fb18-4e43-8bf1-16458cb7414d
-62529cd7-d20c-4848-b911-7fe46523b8dd
+f878a524-d22e-46f5-a2f1-8d1e10e5f55c --> real data verkle trie width - 256
+7be66169-d028-4a08-96f4-49e9a6507d12 --> real data merkle trie keccak width - 16
+36a2d086-8919-485a-bdda-e2f6234030fc --> real data merkle trie poseidon width - 16
+6a56fce4-c5fe-4308-a0c1-49c423b40890 --> real data merkle trie keccak hash width - 32
+700c9e91-a36b-405f-9606-0934b1f561dc --> real data merkle trie poseidon hash width - 32

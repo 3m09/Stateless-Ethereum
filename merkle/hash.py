@@ -1,7 +1,7 @@
 from Crypto.Hash import keccak
 
 # Import your custom, constraint-free Poseidon implementation
-from merkle.myposeidonhash import poseidon_hash
+from zkSNARK.myposeidonhash import poseidon_hash
 
 FIELD_MOD = 52435875175126190479447740508185965837690552500527637822603658699938581184513
 
