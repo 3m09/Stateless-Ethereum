@@ -68,7 +68,8 @@ def test():
         f.write(tree_id + "\n")
 
     # data = fetch_trie_kv_pairs(NUM_KEYS, output_file=tree_data_path)
-    with open("data.json") as f:
+    data_file_path = "random_data.json" if TREE_TYPE == "verkle" else "data.json"
+    with open(data_file_path) as f:
         data = json.load(f)
     
     data = dict(list(data.items())[:NUM_KEYS])
@@ -110,8 +111,8 @@ def test():
 
     # print("Inserted data into tree")
 
-    tree_data_path = f"{db_path}/data.json"
-    data_to_store = {}
+    # tree_data_path = f"{db_path}/data.json"
+    # data_to_store = {}
 
     for idx, (k, v) in enumerate(data.items()):
         if idx % 100 == 0:
@@ -124,37 +125,37 @@ def test():
         clean_hex_val = v[2:] if v.startswith('0x') else v
         val_bytes = bytes.fromhex(clean_hex_val)
 
-        # =========================================================
-        # 3. CONDITIONAL LOGIC FOR VERKLE SUFFIX TREE
-        # =========================================================
-        if TREE_TYPE == "verkle":
-            # The Ethereum EAS Tree uses the first 31 bytes as the stem
-            base_key = key_bytes[:31]
+        # # =========================================================
+        # # 3. CONDITIONAL LOGIC FOR VERKLE SUFFIX TREE
+        # # =========================================================
+        # if TREE_TYPE == "verkle":
+        #     # The Ethereum EAS Tree uses the first 31 bytes as the stem
+        #     base_key = key_bytes[:31]
             
-            # Chop the RLP value into 31-byte scalars so they fit perfectly 
-            # inside the BLS12-381 finite field without overflowing!
-            CHUNK_SIZE = 31
-            chunks = [val_bytes[i:i + CHUNK_SIZE] for i in range(0, len(val_bytes), CHUNK_SIZE)]
+        #     # Chop the RLP value into 31-byte scalars so they fit perfectly 
+        #     # inside the BLS12-381 finite field without overflowing!
+        #     CHUNK_SIZE = 31
+        #     chunks = [val_bytes[i:i + CHUNK_SIZE] for i in range(0, len(val_bytes), CHUNK_SIZE)]
             
-            for suffix_index, chunk in enumerate(chunks):
-                # The 32nd byte becomes the suffix (0, 1, 2, 3...)
-                suffix_byte = suffix_index.to_bytes(1, 'big')
-                final_key = base_key + suffix_byte
+        #     for suffix_index, chunk in enumerate(chunks):
+        #         # The 32nd byte becomes the suffix (0, 1, 2, 3...)
+        #         suffix_byte = suffix_index.to_bytes(1, 'big')
+        #         final_key = base_key + suffix_byte
                 
-                # Insert each chunk as its own adjacent leaf
-                data_tree.insert(final_key, chunk)
-                data_to_store[final_key.hex()] = chunk.hex()
+        #         # Insert each chunk as its own adjacent leaf
+        #         data_tree.insert(final_key, chunk)
+        #         data_to_store[final_key.hex()] = chunk.hex()
                 
         # =========================================================
         # STANDARD MERKLE TRIE
         # =========================================================
-        else:
+        # else:
             # Standard MPT can handle the full 80-byte value in a single leaf
-            data_tree.insert(key_bytes, val_bytes)
+        data_tree.insert(key_bytes, val_bytes)
     
-    if TREE_TYPE == "verkle":
-        with open(tree_data_path, "w") as f:
-            json.dump(data_to_store, f, indent=2)
+    # if TREE_TYPE == "verkle":
+    #     with open(tree_data_path, "w") as f:
+    #         json.dump(data_to_store, f, indent=2)
 
     print("Inserted data into tree")
 

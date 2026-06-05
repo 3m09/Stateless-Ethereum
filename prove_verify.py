@@ -77,13 +77,14 @@ def test():
     #     data = json.load(f)
 
 
-    if TREE_TYPE == "verkle":
-        data_path = f"{db_path}/data.json"
-        with open(data_path) as f:
-            data = json.load(f)
-    else:
-        with open('data.json') as f:
-            data = json.load(f)
+    # if TREE_TYPE == "verkle":
+    #     data_path = f"{db_path}/data.json"
+    #     with open(data_path) as f:
+    #         data = json.load(f)
+    # else:
+    data_file_path = "random_data.json" if TREE_TYPE == "verkle" else "data.json"
+    with open(data_file_path) as f:
+        data = json.load(f)
     
     data = dict(list(data.items())[:NUM_KEYS_TREE])
 

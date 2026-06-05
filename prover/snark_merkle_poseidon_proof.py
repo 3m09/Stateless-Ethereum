@@ -295,7 +295,7 @@ def _verify_poseidon_consistency():
     )
     print("Poseidon consistency check passed.")
 
-@register_prover("zksnarkmerkle_poseidon")
+@register_prover("zksnarkmerkle")
 class ZKSnarkMerklePoseidonProof(BaseProver):
     def __init__(self, setup_object=None):
         self.setup_object = setup_object
