@@ -18,3 +18,15 @@ d0b356ad-97b4-478e-b402-cfd67a5d39f5 --> merkle, w=4, k=1024
 60c57fc4-f593-42bf-b7fc-3c7013052a52 --> verkle, w=256, k=50
 2c598853-5400-40e2-a277-175040257062 --> verkle, w=256, k=10
 14b27ef3-98ab-474c-8e22-90af34e69156 --> verkle, w=256, k=10 random data
+094e7e9b-14d3-4f03-9e9c-5e119da5835b
+4c58626e-fe4c-488b-9e8b-73a3179b6162
+7ac7f332-6d1d-49ca-ab13-433b29ec8d13
+a84e52dc-c777-4490-936b-ad1c5e765872 --> merkle, w=4, k=256
+28b5f1b1-eac7-4ec5-8de3-917f7f8c5825 --> merkle, w=16, k=256, poseidon
+9f27bb7e-5177-4c5b-82b1-1b45c23c3616 --> merkle, w=16, k=512, poseidon
+a9df956a-da3a-462c-8635-a6225b87363e --> merkle, w=16, k=1024, poseidon
+a245522d-d6ed-474b-b49d-c96236798f0c --> merkle, w=16, k=2048, poseidon
+e2cc04de-e103-4d24-91ba-02890dbc707e --> merkle, w=4, k=2048, poseidon
+80272537-2f99-401c-b5fc-35aec37d681d --> merkle, w=4, k=1024, poseidon
+abbae042-4da4-401f-aa5c-f2d993e50d85 --> merkle, w=4, k=512, poseidon
+d54e8491-5f99-41d2-a944-90a7c90733fe --> merkle, w=4, k=256, poseidon
