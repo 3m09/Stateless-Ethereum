@@ -3,6 +3,16 @@ f878a524-d22e-46f5-a2f1-8d1e10e5f55c --> real data verkle trie width - 256
 36a2d086-8919-485a-bdda-e2f6234030fc --> real data merkle trie poseidon width - 16
 6a56fce4-c5fe-4308-a0c1-49c423b40890 --> real data merkle trie keccak hash width - 32
 700c9e91-a36b-405f-9606-0934b1f561dc --> real data merkle trie poseidon hash width - 32
-bf9a7140-ad66-4df3-9496-ef7307f43152 --> 1000000 key merkle width 16
-7871ff21-5fcc-4ff9-b37b-e544bfdda39e --> 100000 key merkle width 16
-7573db6c-1eb6-4abb-b603-1980ed1183cc --> 10000000 key merkle width 16
+a9785496-0e01-402a-8795-3e7de3494217 --> real data merkle trie poseidon hash width - 16 10^5 keys
+39436dcd-a339-4c47-a5ae-1653d4dbbc06 --> real data merkle trie poseidon hash width - 16 10^6 keys
+6f2a2ecc-fe58-4e0f-8a94-1c20ac92f798
+25f9beea-9d94-4549-8bb1-e0590022d6fb --> 50 keys verkle
+d01e0fc6-ef72-4c72-a346-c7434f46b5a0 --> merkle, w=16, k=128
+c5d3150e-7f14-4992-91cc-6108ec4ae4a8 --> merkle, w=16, k=256
+f84b8ad5-5551-4b7d-8be3-0232dbcc53db --> merkle, w=16, k=512
+62774d72-750f-4966-9ac6-0555204337ee --> merkle, w=16, k=1024
+78241067-e834-4352-b2ef-adad6f47e2ac --> merkle, w=16, k=2048
+8b56f5f4-10b6-41cc-ad88-24a5c1bbd70f --> merkle, w=8, k=1024
+d0b356ad-97b4-478e-b402-cfd67a5d39f5 --> merkle, w=4, k=1024
+5b5e2ae4-04b4-4902-8784-f87a2b7a6dc0 --> merkle, w=2, k=1024
+60c57fc4-f593-42bf-b7fc-3c7013052a52 --> verkle, w=256, k=50

@@ -63,7 +63,7 @@ def test():
     print("Generated setup")
 
     db_path = f'./tree_storage/{TREE_ID}'
-    data_path = f'{db_path}/data.json'
+    # data_path = f'{db_path}/data.json'
     tree_info_path = f'{db_path}/tree_info.json'
 
     tree_info = json.load(open(tree_info_path))
@@ -73,8 +73,19 @@ def test():
         raise ValueError(f"NUM_KEYS_TO_PROVE ({NUM_KEYS_TO_PROVE}) cannot be greater than the number of keys in the tree ({NUM_KEYS_TREE}).")
 
     data = {}
-    with open(data_path) as f:
-        data = json.load(f)
+    # with open(data_path) as f:
+    #     data = json.load(f)
+
+
+    if TREE_TYPE == "verkle":
+        data_path = f"{db_path}/data.json"
+        with open(data_path) as f:
+            data = json.load(f)
+    else:
+        with open('data.json') as f:
+            data = json.load(f)
+    
+    data = dict(list(data.items())[:NUM_KEYS_TREE])
 
     print("Loaded tree data")
 

@@ -52,7 +52,7 @@ def test():
     storage_root.mkdir(parents=True, exist_ok=True)
 
     db_path = str(storage_root / tree_id)
-    tree_data_path = f"{db_path}/data.json"
+    # tree_data_path = f"{db_path}/data.json"
 
     Path(db_path).mkdir(parents=True, exist_ok=True)
 
@@ -67,9 +67,11 @@ def test():
     with open(ids_path, "a") as f:
         f.write(tree_id + "\n")
 
-    data = fetch_trie_kv_pairs(NUM_KEYS, output_file=tree_data_path)
-    # with open("ethereum_trie_kv_pairs.json") as f:
-    #     data = json.load(f)
+    # data = fetch_trie_kv_pairs(NUM_KEYS, output_file=tree_data_path)
+    with open("data.json") as f:
+        data = json.load(f)
+    
+    data = dict(list(data.items())[:NUM_KEYS])
 
     print("Loaded real Ethereum data")
 
@@ -108,6 +110,9 @@ def test():
 
     # print("Inserted data into tree")
 
+    tree_data_path = f"{db_path}/data.json"
+    data_to_store = {}
+
     for idx, (k, v) in enumerate(data.items()):
         if idx % 100 == 0:
             print(f" Inserting key of index: {idx}")
@@ -124,7 +129,7 @@ def test():
         # =========================================================
         if TREE_TYPE == "verkle":
             # The Ethereum EAS Tree uses the first 31 bytes as the stem
-            base_key = key_bytes[:31] 
+            base_key = key_bytes[:31]
             
             # Chop the RLP value into 31-byte scalars so they fit perfectly 
             # inside the BLS12-381 finite field without overflowing!
@@ -138,6 +143,7 @@ def test():
                 
                 # Insert each chunk as its own adjacent leaf
                 data_tree.insert(final_key, chunk)
+                data_to_store[final_key.hex()] = chunk.hex()
                 
         # =========================================================
         # STANDARD MERKLE TRIE
@@ -145,6 +151,10 @@ def test():
         else:
             # Standard MPT can handle the full 80-byte value in a single leaf
             data_tree.insert(key_bytes, val_bytes)
+    
+    if TREE_TYPE == "verkle":
+        with open(tree_data_path, "w") as f:
+            json.dump(data_to_store, f, indent=2)
 
     print("Inserted data into tree")
 
