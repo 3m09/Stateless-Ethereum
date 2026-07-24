@@ -1,6 +1,7 @@
 {
     "TREE_TYPE": "merkle",
     "HASH_FN": "keccak",
+<<<<<<< HEAD
     "TREE_ID": "761c00a0-9aac-4ace-b889-2b45846b15c3",
     "PROVER_TYPE": "zkstarkmerkle",
     "VERIFIER_TYPE": "zkstarkmerkle",
@@ -8,4 +9,13 @@
     "WIDTH": 16,
     "SECRET": 1927409816240961209460912649124,
     "NUM_KEYS_TO_PROVE": 16
+=======
+    "TREE_ID": "5b5e2ae4-04b4-4902-8784-f87a2b7a6dc0",
+    "PROVER_TYPE": "merkle_optimized",
+    "VERIFIER_TYPE": "merkle_optimized",
+    "SETUP_TYPE": "",
+    "WIDTH": 2,
+    "SECRET": 1927409816240961209460912649124,
+    "NUM_KEYS_TO_PROVE": 128
+>>>>>>> refs/remotes/origin/stark_dev
 }

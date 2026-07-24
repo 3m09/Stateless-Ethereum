@@ -4,7 +4,11 @@ from registry.setup import SETUP_REGISTRY
 from datetime import datetime
 from pathlib import Path
 import uuid
+<<<<<<< HEAD
 # from helper_scripts.get_eth_data import fetch_trie_kv_pairs
+=======
+from get_eth_data import fetch_trie_kv_pairs
+>>>>>>> refs/remotes/origin/stark_dev
 
 def generate_tree(method, width, db_path, hash_fn=None, setup=None):
     tree_class = TREE_REGISTRY[method]
@@ -69,7 +73,10 @@ def test():
 
     # data = fetch_trie_kv_pairs(NUM_KEYS, output_file=tree_data_path)
     data_file_path = "random_data.json" if TREE_TYPE == "verkle" else "data.json"
+<<<<<<< HEAD
     # data_file_path = "data.json"
+=======
+>>>>>>> refs/remotes/origin/stark_dev
     with open(data_file_path) as f:
         data = json.load(f)
     

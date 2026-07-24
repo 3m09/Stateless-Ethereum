@@ -428,6 +428,10 @@ class MerklePatriciaTrie(BaseTree):
     def get_proof_size(self, commitments, root_hash: bytes) -> int:
         size = 0
         for proof_path in commitments:
+<<<<<<< HEAD
+=======
+            # print("proof path length:", len(proof_path))
+>>>>>>> refs/remotes/origin/stark_dev
             for rlp_node in proof_path:
                 size += len(rlp_node)
         size += len(root_hash)

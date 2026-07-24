@@ -83,7 +83,10 @@ def test():
     #         data = json.load(f)
     # else:
     data_file_path = "random_data.json" if TREE_TYPE == "verkle" else "data.json"
+<<<<<<< HEAD
     # data_file_path = "data.json"
+=======
+>>>>>>> refs/remotes/origin/stark_dev
     with open(data_file_path) as f:
         data = json.load(f)
     

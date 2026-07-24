@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # from Crypto.Hash import keccak
 
 # # Import your custom, constraint-free Poseidon implementation
@@ -146,6 +147,14 @@ class CircomPoseidon:
     Wraps a persistent circomlibjs Node process.
     One process, many hash calls — no per-call startup overhead.
     """
+=======
+from Crypto.Hash import keccak
+
+# Import your custom, constraint-free Poseidon implementation
+from zkSNARK.myposeidonhash import poseidon_hash
+
+FIELD_MOD = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+>>>>>>> refs/remotes/origin/stark_dev
 
     def __init__(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -195,10 +204,20 @@ def keccak_hash(data):
     return k.digest()
 
 def poseidon_hash_bytes(data: bytes) -> bytes:
+<<<<<<< HEAD
+=======
+    """
+    Sequential ZK Sponge Hash (t=2 arity).
+    Uses the custom pure-Python myposeidonhash to guarantee exact matrix matching 
+    without triggering PySnark's constraint writer.
+    """
+    # 1. Pad to exact 32-byte alignment
+>>>>>>> refs/remotes/origin/stark_dev
     remainder = len(data) % 32
     if remainder != 0:
         data += b'\0' * (32 - remainder)
 
+<<<<<<< HEAD
     chunks = [data[i:i+32] for i in range(0, len(data), 32)]
     field_elements = [int.from_bytes(chunk, "big") % FIELD_MOD for chunk in chunks]
 
@@ -210,6 +229,24 @@ def poseidon_hash_bytes(data: bytes) -> bytes:
         batch[0] = (current_hash + batch[0]) % FIELD_MOD
 
         hash_result = poseidon_hash(batch, FIELD_MOD)  # <-- now calls circomlib
+=======
+    # 2. Slice into 32-byte chunks
+    chunks = [data[i:i+32] for i in range(0, len(data), 32)]
+    field_elements = [int.from_bytes(chunk, "big") % FIELD_MOD for chunk in chunks]
+
+    # 3. Execute the pure Python sponge loop
+    current_hash = 0
+    
+    for element in field_elements:
+        # Modulo the addition to prevent field overflow
+        combined = (current_hash + element) % FIELD_MOD
+        
+        # Call your custom pure-Python hash function. 
+        # It takes a list of integers and the modulus.
+        hash_result = poseidon_hash([combined], FIELD_MOD) 
+        
+        # The result is a list of integers, extract the first one
+>>>>>>> refs/remotes/origin/stark_dev
         current_hash = hash_result[0]
 
     return current_hash.to_bytes(32, "big")
