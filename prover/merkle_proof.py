@@ -7,6 +7,7 @@ class MerkleProofGenerator(BaseProver):
     def __init__(self, setup_object=None):
         # Merkle doesn't need setup (unlike Verkle's KZG)
         self.setup_object = setup_object
+        self.tree = None
 
     def generate_proof(self, tree: MerklePatriciaTrie, keys: list[bytes]):
         """
@@ -23,6 +24,7 @@ class MerkleProofGenerator(BaseProver):
         Each proof path is a list of RLP-encoded nodes from root to leaf.
         """
         # Collect proof for each key
+        self.tree = tree
         commitments = []
         for key in keys:
             # get_proof_tree returns list of RLP-encoded nodes along the path
@@ -36,3 +38,6 @@ class MerkleProofGenerator(BaseProver):
         witness = tree.root_hash()
         
         return commitments, witness
+    
+    def proof_size(self, commitments, witness) -> int:
+        return self.tree.get_proof_size(commitments, witness)

@@ -1,0 +1,61 @@
+<<<<<<< HEAD
+bec27700-9b9e-4c02-aefa-24a73f9eac07
+838696b8-bc97-4014-bd71-ebec15c3d8cb
+761c00a0-9aac-4ace-b889-2b45846b15c3
+=======
+f878a524-d22e-46f5-a2f1-8d1e10e5f55c --> real data verkle trie width - 256
+7be66169-d028-4a08-96f4-49e9a6507d12 --> real data merkle trie keccak width - 16
+36a2d086-8919-485a-bdda-e2f6234030fc --> real data merkle trie poseidon width - 16
+6a56fce4-c5fe-4308-a0c1-49c423b40890 --> real data merkle trie keccak hash width - 32
+700c9e91-a36b-405f-9606-0934b1f561dc --> real data merkle trie poseidon hash width - 32
+a9785496-0e01-402a-8795-3e7de3494217 --> real data merkle trie poseidon hash width - 16 10^5 keys
+39436dcd-a339-4c47-a5ae-1653d4dbbc06 --> real data merkle trie poseidon hash width - 16 10^6 keys
+6f2a2ecc-fe58-4e0f-8a94-1c20ac92f798
+25f9beea-9d94-4549-8bb1-e0590022d6fb --> 50 keys verkle
+d01e0fc6-ef72-4c72-a346-c7434f46b5a0 --> merkle, w=16, k=128
+c5d3150e-7f14-4992-91cc-6108ec4ae4a8 --> merkle, w=16, k=256
+f84b8ad5-5551-4b7d-8be3-0232dbcc53db --> merkle, w=16, k=512
+62774d72-750f-4966-9ac6-0555204337ee --> merkle, w=16, k=1024
+78241067-e834-4352-b2ef-adad6f47e2ac --> merkle, w=16, k=2048
+8b56f5f4-10b6-41cc-ad88-24a5c1bbd70f --> merkle, w=8, k=1024
+d0b356ad-97b4-478e-b402-cfd67a5d39f5 --> merkle, w=4, k=1024
+5b5e2ae4-04b4-4902-8784-f87a2b7a6dc0 --> merkle, w=2, k=1024
+60c57fc4-f593-42bf-b7fc-3c7013052a52 --> verkle, w=256, k=50
+2c598853-5400-40e2-a277-175040257062 --> verkle, w=256, k=10
+14b27ef3-98ab-474c-8e22-90af34e69156 --> verkle, w=256, k=10 random data
+002d3e81-24ba-4717-ac5a-bb63f4092ff5 --> merkle, w=2, k=512
+94732776-30bb-491f-aa14-08716c8e30df --> merkle, w=4, k=512
+d3d3db73-806c-4251-8e1d-ad0857596cbf --> merkle, w=8, k=512
+c8931d92-7570-4dc4-a695-16638aadb162 --> merkle, w=16, k=512
+ddd5666c-6e82-4264-84d4-8485d307ddd2 --> merkle, w=32, k=512
+4428168a-bcea-48fc-b57a-ab8c9efd25e3 --> merkle, w=2, k=512
+27eeba82-d3b0-4de6-a2d5-294130e41fe5 --> merkle, w=4, k=512
+86827858-dcd2-459f-b8ca-1e06620f0602 --> merkle, w=8, k=512
+6ad80804-9c7c-485b-9569-24bf2f5dcb3e --> merkle, w=16, k=512
+5b1532b5-e370-4883-a43b-66bb4fe0ec97 --> merkle, w=32, k=512
+80cdd715-f31a-42a0-8c6a-ce3407578323 --> verkle, w=16, k=512
+7cf72b7e-39fb-4403-b4a4-226f47f6a9a9 --> verkle, w=32, k=512
+4d302c34-7ea7-4115-bc5f-44e996cdbe11 --> verkle, w=64, k=512
+4d89e6d3-a0f8-4045-9d07-10b5b5729ebb --> verkle, w=128, k=512
+7e27cb39-2e0e-4a19-ac1a-3d2416111838 --> verkle, w=256, k=512
+0b089f21-3d75-4722-b03a-45c6d438ba31  # width=16 num_keys=256
+62cd71b1-2cd2-46eb-97b7-40a41648a755  # width=256 num_keys=256
+094e7e9b-14d3-4f03-9e9c-5e119da5835b --> verkle, w=16, k=1024
+4c58626e-fe4c-488b-9e8b-73a3179b6162 --> verkle, w=64, k=1024
+7ac7f332-6d1d-49ca-ab13-433b29ec8d13 --> verkle, w=128, k=1024
+a84e52dc-c777-4490-936b-ad1c5e765872 --> merkle, w=4, k=256
+28b5f1b1-eac7-4ec5-8de3-917f7f8c5825 --> merkle, w=16, k=256, poseidon
+9f27bb7e-5177-4c5b-82b1-1b45c23c3616 --> merkle, w=16, k=512, poseidon
+a9df956a-da3a-462c-8635-a6225b87363e --> merkle, w=16, k=1024, poseidon
+a245522d-d6ed-474b-b49d-c96236798f0c --> merkle, w=16, k=2048, poseidon
+e2cc04de-e103-4d24-91ba-02890dbc707e --> merkle, w=4, k=2048, poseidon
+80272537-2f99-401c-b5fc-35aec37d681d --> merkle, w=4, k=1024, poseidon
+abbae042-4da4-401f-aa5c-f2d993e50d85 --> merkle, w=4, k=512, poseidon
+d54e8491-5f99-41d2-a944-90a7c90733fe --> merkle, w=4, k=256, poseidon
+64c62a6b-f748-422c-9930-323b87429b26 --> merkle, w=4, k=256 working
+7b9a0e6c-1fee-48cd-9099-c7c17f3dd326 --> merkle, w=16, k=256 working
+3d195059-edc5-46ac-82f9-15b85d71539f -->merkle, w=16, k=1024, poseidon working
+94498861-8515-4af7-81e9-3e9612a10349 -->merkle, w=4, k=1024, poseidon working
+0664c4a2-46e4-4bd5-a6eb-99191733d838 -->merkle, w=4, k=512, poseidon working
+d5cc9b63-260f-47f0-bc14-ee77ab5a9064 -->merkle, w=4, k=256, poseidon working
+>>>>>>> refs/remotes/origin/stark_dev

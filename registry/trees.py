@@ -7,13 +7,19 @@ class TreeNode:
         self.children = [None] * width           
         self.value = None  
         self.commitment_to_children = None
-        self.type = 'non_leaf'                                           
+        self.type = 'non_leaf'  
+
+        # --- NEW ATTRIBUTES FOR EIP-6800 ---
+        self.stem = b''    # Stores the compressed path bytes (for Extension nodes)
+        self.child = None  # Stores the single reference to the Suffix Tree                                         
 
 class BaseTree:
-    def __init__(self, width, setup_object=None):
+    def __init__(self, width, db_path, hash_fn=None, setup_object=None):
         self.width = width
+        self.db_path = db_path
         self.root = TreeNode(width)
         self.setup_object = setup_object
+        self.hash_fn = hash_fn
 
     def insert(self, key, value):
         raise NotImplementedError

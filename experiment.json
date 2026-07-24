@@ -1,0 +1,8 @@
+{
+    "tree_type": "merkle",
+    "hash_fn": "poseidon",
+    "num_key_tree": [256, 512, 1024, 2048],
+    "width": [4,16],
+    "num_key_prove": [16],
+    "prover": ["zksnarkmerkle"]
+}

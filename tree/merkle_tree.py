@@ -5,7 +5,8 @@ from registry.trees import BaseTree, register_tree
 #from registry.trees import TreeNode
 from merkle.nibble_path import NibblePath
 from merkle.node import Node
-from merkle.hash import keccak_hash
+from merkle.hash import keccak_hash, poseidon_hash_bytes
+from zkSNARK.zk_encoder_decoder import _zk_encode, _zk_decode
 import plyvel
 
 
@@ -22,27 +23,31 @@ class MerklePatriciaTrie(BaseTree):
     - Uses an in-memory dict as storage (hash -> encoded node).
     """
 
-    def __init__(self, width=16, setup_object=None, secure=False, storage=None):
-        # BaseTree will create a TreeNode root, but we won't use its children directly.
-        # We treat BaseTree.root.value as "root reference" (bytes) of the MPT.
-        if width != 16:
-            raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
+    def __init__(self, width=16, db_path='./merkle', hash_fn="keccak", setup_object=None, secure=False, storage=None):
+        # BaseTree doesn't have __init__, so we don't call super().__init__()
+        # We manage our own state for MPT
+        # if width != 16:
+        #     raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
 
-        super().__init__(width=width, setup_object=setup_object)
+        super().__init__(width=width, db_path=db_path, hash_fn=hash_fn, setup_object=setup_object)
 
         # self._storage is currently unused because of plyvel DB usage
         # # Underlying node storage: hash -> encoded node
         # self._storage = storage if storage is not None else {}
 
-        self.db = plyvel.DB('./merkle/merkle_state_db', create_if_missing=True)
+        self.db = plyvel.DB(db_path + '/merkle_state_db', create_if_missing=True)
 
         # Secure mode means: hash keys with keccak256 before turning into nibbles.
         self._secure = secure
 
         # MPT root reference (bytes or None).
         # This is the "real" root of the trie; we mirror it in self.root.value.
-        self._root_ref = open('./roots/merkle_root_ref.bin', 'rb').read() if os.path.exists('./roots/merkle_root_ref.bin') else None
+        self._root_ref = open(db_path + '/merkle_root_ref.bin', 'rb').read() if os.path.exists(db_path + '/merkle_root_ref.bin') else None
         self.root.value = self._root_ref
+        self.hash_fn_name = hash_fn
+        self.hash = keccak_hash if hash_fn == "keccak" else poseidon_hash_bytes if hash_fn == "poseidon" else None
+        if self.hash is None:
+            raise ValueError("hash_fn must be 'keccak' or 'poseidon'")
 
     # -------------------------------------------------------------------------
     # Public API (BaseTree)
@@ -64,13 +69,13 @@ class MerklePatriciaTrie(BaseTree):
         encoded_value = bytes(value)
 
         if self._secure:
-            encoded_key = keccak_hash(encoded_key)
+            encoded_key = self.hash(encoded_key)
 
         path = NibblePath(encoded_key)
         new_root_ref = self._update(self._root_ref, path, encoded_value)
 
         self._root_ref = new_root_ref
-        with open('./roots/merkle_root_ref.bin', 'wb') as f:
+        with open(self.db_path + '/merkle_root_ref.bin', 'wb') as f:
             f.write(self._root_ref)
         self.root.value = self._root_ref  # mirror into BaseTree root node
 
@@ -90,7 +95,7 @@ class MerklePatriciaTrie(BaseTree):
 
         encoded_key = bytes(key)
         if self._secure:
-            encoded_key = keccak_hash(encoded_key)
+            encoded_key = self.hash(encoded_key)
 
         path = NibblePath(encoded_key)
         node = self._get(self._root_ref, path)
@@ -120,7 +125,7 @@ class MerklePatriciaTrie(BaseTree):
 
         encoded_key = bytes(key)
         if self._secure:
-            encoded_key = keccak_hash(encoded_key)
+            encoded_key = self.hash(encoded_key)
 
         path = NibblePath(encoded_key)
         proof_nodes = []
@@ -141,8 +146,14 @@ class MerklePatriciaTrie(BaseTree):
             # Add this node's encoding to the proof
             proof_nodes.append(encoded_node)
 
-            # Decode into a structured Node instance
-            node = Node.decode(encoded_node)
+            # # Decode into a structured Node instance
+            # node = Node.decode(encoded_node)
+
+            # Decode into a structured Node instance using the correct decoder
+            if self.hash_fn_name == "poseidon":
+                node = _zk_decode(encoded_node)
+            else:
+                node = Node.decode(encoded_node)
 
             # Leaf: must match exactly the remaining path
             if isinstance(node, Node.Leaf):
@@ -216,26 +227,15 @@ class MerklePatriciaTrie(BaseTree):
         elif len(self._root_ref) == 32:
             return self._root_ref
         else:
-            return keccak_hash(self._root_ref)
+            return self.hash(self._root_ref)
 
-    # -------------------------------------------------------------------------
-    # Internal helpers (adapted directly from your previous MPT)
-    # -------------------------------------------------------------------------
-
-    # def _get_node(self, node_ref):
-    #     """
-    #     Turn a node reference (hash or inline encoded node) into a Node object.
-    #     """
-    #     if len(node_ref) == 32:
-    #         raw_node = self._storage[node_ref]
-    #     else:
-    #         raw_node = node_ref
-    #     return Node.decode(raw_node)
 
     def _get_node(self, reference):
         data = self.db.get(reference)
         if data is None:
             raise KeyError("Node not found: " + reference.hex())
+        if self.hash_fn_name == "poseidon":
+            return _zk_decode(data)
         return Node.decode(data)
 
 
@@ -413,8 +413,27 @@ class MerklePatriciaTrie(BaseTree):
     #     return reference
 
     def _store_node(self, node):
-        reference = Node.into_reference(node)      # returns raw bytes
-        if len(reference) == 32:                   # hashed node → store
-            encoded = node.encode()                # raw bytes
-            self.db.put(reference, encoded)        # <--- LevelDB write
+        if self.hash_fn_name == "poseidon":
+            encoded = _zk_encode(node)
+            # You may also need to bypass Node.into_reference if it forces RLP
+            reference = self.hash(encoded) 
+        else:
+            reference = Node.into_reference(node, self.hash_fn_name)
+            encoded = node.encode()
+
+        if len(reference) == 32:
+            self.db.put(reference, encoded)
         return reference
+    
+    def get_proof_size(self, commitments, root_hash: bytes) -> int:
+        size = 0
+        for proof_path in commitments:
+<<<<<<< HEAD
+=======
+            # print("proof path length:", len(proof_path))
+>>>>>>> refs/remotes/origin/stark_dev
+            for rlp_node in proof_path:
+                size += len(rlp_node)
+        size += len(root_hash)
+        return size
+
