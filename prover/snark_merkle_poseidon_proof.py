@@ -1,137 +1,51 @@
-from pysnark.runtime import PrivVal, PubVal, snark, LinComb
-from pysnark.poseidon_hash import poseidon_hash
+import json
+import subprocess
+import os
+import math
+import atexit
 from registry.provers import BaseProver, register_prover
 from tree.poseidon_merkle_tree import PoseidonMerklePatriciaTrie
 from merkle.node import Node
 from merkle.nibble_path import NibblePath
-import atexit
-import os
+from zkSNARK.zk_encoder_decoder import _zk_encode, _zk_decode
 
-def _assert_eq(a, b):
-    if isinstance(a, list) and isinstance(b, list):
-        a[0].assert_eq(b[0])
-    elif isinstance(a, LinComb) and isinstance(b, LinComb):
-        a.assert_eq(b)
-    elif isinstance(a, list) and isinstance(b, LinComb):
-        a[0].assert_eq(b)
-    elif isinstance(a, LinComb) and isinstance(b, list):
-        a.assert_eq(b[0])
-    else:
-        raise TypeError("Mismatched types in hash comparison")
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+CIRCUIT_DIR = "circuit_directory"
+WITNESS_GEN = os.path.join(CIRCUIT_DIR, "mpt_batch_16_cpp", "mpt_batch_16")  # The Circom C++ executable for batched proofs
+PROVER_BIN = "rapidsnark/package/bin/prover"
+ZKEY_PATH = "mpt_batch_16.zkey"
+BUILD_DIR = "snark_proofs"
 
 FIELD_MOD = 21888242871839275222246405745257275088548364400416034343698204186575808495617
+MAX_DEPTH = 10
+MAX_CHUNKS = 40
+BATCH_SIZE = 4 # Poseidon Arity
 
-def _poseidon_sponge_circuit(chunk_lincombs):
-    """
-    Sequential ZK Sponge Hash. 
-    Mirrors the off-circuit hash.py t=2 logic perfectly.
-    """
-    current_hash = PrivVal(0)
-    for element in chunk_lincombs:
-        current_hash = poseidon_hash([current_hash + element])[0]
-    return current_hash
+# ------------------------------------------------------------------------------
+# CHANGE THIS TO TEST DIFFERENT BATCH SIZES (Must match mpt.circom main component)
+# ------------------------------------------------------------------------------
+KEYS_BATCH_SIZE = 16
 
-def _zk_encode(node):
-    if isinstance(node, Node.Leaf):
-        path_bytes = node.path.encode(is_leaf=True)
-        safe_data = node.data if node.data else b''
-        return (
-            (1).to_bytes(32, 'big') +
-            len(path_bytes).to_bytes(32, 'big') +
-            path_bytes.ljust(32, b'\0') +
-            len(safe_data).to_bytes(32, 'big') +
-            safe_data.ljust(32, b'\0')
-        )
-    elif isinstance(node, Node.Extension):
-        path_bytes = node.path.encode(is_leaf=False)
-        return (
-            (2).to_bytes(32, 'big') +
-            len(path_bytes).to_bytes(32, 'big') +
-            path_bytes.ljust(32, b'\0') +
-            node.next_ref.ljust(32, b'\0')
-        )
-    elif isinstance(node, Node.Branch):
-        res = (3).to_bytes(32, 'big')
-        for b in node.branches:
-            res += b if b else b'\0'*32
-        safe_data = node.data if node.data else b''
-        res += len(safe_data).to_bytes(32, 'big')
-        res += safe_data.ljust(32, b'\0')
-        return res
-    raise TypeError("Unknown node type")
+os.makedirs(BUILD_DIR, exist_ok=True)
 
-def _zk_decode(data):
-    node_type = int.from_bytes(data[:32], 'big')
-    if node_type == 1:
-        path_len = int.from_bytes(data[32:64], 'big')
-        path_bytes = data[64 : 64 + path_len]
-        path, _ = NibblePath.decode_with_type(path_bytes)
-        data_len = int.from_bytes(data[96:128], 'big')
-        data_val = data[128 : 128 + data_len]
-        return Node.Leaf(path, data_val)
-    elif node_type == 2:
-        path_len = int.from_bytes(data[32:64], 'big')
-        path_bytes = data[64 : 64 + path_len]
-        path, _ = NibblePath.decode_with_type(path_bytes)
-        next_ref = data[96:128] 
-        return Node.Extension(path, next_ref)
-    elif node_type == 3:
-        branches = []
-        for i in range(16):
-            b_bytes = data[32 + (i * 32) : 64 + (i * 32)]
-            branches.append(b_bytes if b_bytes != b'\0'*32 else b'')
-        data_len = int.from_bytes(data[544:576], 'big')
-        data_val = data[576 : 576 + data_len]
-        return Node.Branch(branches, data_val)
-    raise ValueError(f"Unknown ZK node type: {node_type}")
+def _pad_to_32_bytes(data: bytes) -> bytes:
+    remainder = len(data) % 32
+    if remainder != 0:
+        data += b"\0" * (32 - remainder)
+    return data
 
-@snark
-def generate_zk_proof(values, keys, root_hash, proofs):
-    root_pub = PubVal(int.from_bytes(root_hash, "big") % FIELD_MOD)
+def _get_node_data(node) -> tuple[list[str], str]:
+    enc = _pad_to_32_bytes(_zk_encode(node))
+    chunks = [str(int.from_bytes(enc[j : j + 32], "big") % FIELD_MOD) for j in range(0, len(enc), 32)]
+    actual_batches = str(math.ceil(len(chunks) / BATCH_SIZE))
+    padded_chunks = chunks + ["0"] * (MAX_CHUNKS - len(chunks))
+    if len(padded_chunks) > MAX_CHUNKS:
+        raise ValueError(f"Node exceeds MAX_CHUNKS ({MAX_CHUNKS}).")
+    return padded_chunks, actual_batches
 
-    for key, value, proof in zip(keys, values, proofs):
-        value_pub = PubVal(int.from_bytes(value, "big") % FIELD_MOD)
-        decoded_nodes = [_zk_decode(n) for n in proof]
-
-        node_depths = []
-        current_depth = 0
-        path_obj = NibblePath(key)
-
-        for node in decoded_nodes:
-            node_depths.append(current_depth)
-            if isinstance(node, Node.Leaf) or isinstance(node, Node.Extension):
-                current_depth += len(node.path)
-            elif isinstance(node, Node.Branch):
-                current_depth += 1
-
-        # 1) Leaf extraction and direct constraint injection
-        leaf = decoded_nodes[-1]
-        leaf_enc = _zk_encode(leaf)
-        leaf_chunks = [PrivVal(int.from_bytes(leaf_enc[j:j+32], 'big') % FIELD_MOD) for j in range(0, len(leaf_enc), 32)]
-        
-        # Inject the public value into Chunk 5 (Index 4)
-        leaf_chunks[4] = value_pub  
-        current_hash_lincomb = _poseidon_sponge_circuit(leaf_chunks)
-
-        # 2) Bottom-up algebraic traversal
-        for i in reversed(range(len(decoded_nodes) - 1)):
-            parent = decoded_nodes[i]
-            depth = node_depths[i]
-            parent_enc = _zk_encode(parent)
-            parent_chunks = [PrivVal(int.from_bytes(parent_enc[j:j+32], 'big') % FIELD_MOD) for j in range(0, len(parent_enc), 32)]
-
-            if isinstance(parent, Node.Extension):
-                parent_chunks[3] = current_hash_lincomb
-            elif isinstance(parent, Node.Branch):
-                next_nibble_idx = path_obj.at(depth)
-                parent_chunks[1 + next_nibble_idx] = current_hash_lincomb
-
-            current_hash_lincomb = _poseidon_sponge_circuit(parent_chunks)
-
-        # 3) Root assertion
-        _assert_eq(current_hash_lincomb, root_pub)
-
-@register_prover("zksnarkmerkle_poseidon")
+@register_prover("zksnarkmerkle")
 class ZKSnarkMerklePoseidonProof(BaseProver):
     def __init__(self, setup_object=None):
         self.setup_object = setup_object
@@ -140,14 +54,145 @@ class ZKSnarkMerklePoseidonProof(BaseProver):
         values = [tree.get(key) for key in keys]
         proofs = [tree.get_proof_tree(key) for key in keys]
         root_hash = tree.root_hash()
-        generate_zk_proof(values, keys, root_hash, proofs)
-        atexit._run_exitfuncs()
-        return "dummy_commitments", "dummy_witness"
+        
+        proof_files = []
+        public_files = []
 
-    def proof_size(self, commitments, witness) -> int:
-        file_names = ["circuit.zkif", "computation.zkif"]
+        # Process the list of keys in chunks of KEYS_BATCH_SIZE
+        for chunk_idx, i in enumerate(range(0, len(keys), KEYS_BATCH_SIZE)):
+            chunk_keys = keys[i : i + KEYS_BATCH_SIZE]
+            chunk_values = values[i : i + KEYS_BATCH_SIZE]
+            chunk_proofs = proofs[i : i + KEYS_BATCH_SIZE]
+
+            # Pad the chunk by duplicating the last valid key if it's too small
+            while len(chunk_keys) < KEYS_BATCH_SIZE:
+                chunk_keys.append(chunk_keys[-1])
+                chunk_values.append(chunk_values[-1])
+                chunk_proofs.append(chunk_proofs[-1])
+
+            # Initialize the batched JSON structure
+            batch_input = {
+                "root_pub": [], "length_pub": [], "val_pub_0": [], "val_pub_1": [], "val_pub_2": [],
+                "actual_depth": [], "leaf_chunks": [], "leaf_batches": [],
+                "node_types": [], "node_nibbles": [], "node_chunks": [], "node_batches": []
+            }
+
+            # Process every key in this batch
+            for key, value, proof in zip(chunk_keys, chunk_values, chunk_proofs):
+                root_pub = str(int.from_bytes(root_hash, "big") % FIELD_MOD)
+                length_pub = str(len(value))
+                
+                padded_value = value.ljust(96, b"\0")
+                val_pub_0 = str(int.from_bytes(padded_value[0:32],  "big") % FIELD_MOD)
+                val_pub_1 = str(int.from_bytes(padded_value[32:64], "big") % FIELD_MOD)
+                val_pub_2 = str(int.from_bytes(padded_value[64:96], "big") % FIELD_MOD)
+
+                decoded_nodes = [_zk_decode(n) for n in proof]
+                path_obj = NibblePath(key)
+                
+                leaf = decoded_nodes[-1]
+                leaf_chunks, leaf_batches = _get_node_data(leaf)
+
+                parent_nodes = decoded_nodes[:-1]
+                actual_depth = len(parent_nodes)
+                
+                node_types, node_nibbles, node_chunks, node_batches = [], [], [], []
+                
+                current_depth = 0
+                depths = []
+                for node in parent_nodes:
+                    depths.append(current_depth)
+                    if isinstance(node, (Node.Leaf, Node.Extension)):
+                        current_depth += len(node.path)
+                    elif isinstance(node, Node.Branch):
+                        current_depth += 1
+                
+                for parent, d in zip(reversed(parent_nodes), reversed(depths)):
+                    chunks, batches = _get_node_data(parent)
+                    
+                    if isinstance(parent, Node.Extension):
+                        node_types.append("0")
+                        node_nibbles.append("0")
+                    elif isinstance(parent, Node.Branch):
+                        node_types.append("1")
+                        node_nibbles.append(str(path_obj.at(d)))
+                    else:
+                        node_types.append("0")
+                        node_nibbles.append("0")
+                        
+                    node_chunks.append(chunks)
+                    node_batches.append(batches)
+
+                padding_needed = MAX_DEPTH - actual_depth
+                node_types.extend(["0"] * padding_needed)
+                node_nibbles.extend(["0"] * padding_needed)
+                node_batches.extend(["0"] * padding_needed)
+                node_chunks.extend([["0"] * MAX_CHUNKS] * padding_needed)
+
+                # Append data to the arrays
+                batch_input["root_pub"].append(root_pub)
+                batch_input["length_pub"].append(length_pub)
+                batch_input["val_pub_0"].append(val_pub_0)
+                batch_input["val_pub_1"].append(val_pub_1)
+                batch_input["val_pub_2"].append(val_pub_2)
+                batch_input["actual_depth"].append(str(actual_depth))
+                batch_input["leaf_chunks"].append(leaf_chunks)
+                batch_input["leaf_batches"].append(leaf_batches)
+                batch_input["node_types"].append(node_types)
+                batch_input["node_nibbles"].append(node_nibbles)
+                batch_input["node_chunks"].append(node_chunks)
+                batch_input["node_batches"].append(node_batches)
+
+            # File Paths
+            input_json_path = os.path.join(BUILD_DIR, f"input_batch_{chunk_idx}.json")
+            witness_path = os.path.join(BUILD_DIR, f"witness_batch_{chunk_idx}.wtns")
+            proof_path = os.path.join(BUILD_DIR, f"proof_batch_{chunk_idx}.json")
+            public_path = os.path.join(BUILD_DIR, f"public_batch_{chunk_idx}.json")
+
+            with open(input_json_path, "w") as f:
+                json.dump(batch_input, f)
+
+            print(f"\n[Batch {chunk_idx+1}] Generating Witness (Circom C++)...")
+            subprocess.run([WITNESS_GEN, input_json_path, witness_path], check=True)
+
+            print(f"[Batch {chunk_idx+1}] Generating Proof (RapidSnark)...")
+            subprocess.run([PROVER_BIN, ZKEY_PATH, witness_path, proof_path, public_path], check=True)
+            
+            proof_files.append(proof_path)
+            public_files.append(public_path)
+        
+        return proof_files, public_files
+
+    def proof_size(self, proof_files, public_files) -> int:
+        """
+        Parses the JSON proof and physically packs the field elements into a 
+        raw byte array exactly as they would be sent to an Ethereum EVM contract.
+        Returns the true byte length.
+        """
         total_size = 0
-        for file_name in file_names:
+        for file_name in proof_files:
             if os.path.exists(file_name):
-                total_size += os.path.getsize(file_name)
+                with open(file_name, 'r') as f:
+                    proof = json.load(f)
+                    
+                packed_bytes = bytearray()
+                
+                # 1. Pack pi_a (G1 Point: X, Y)
+                packed_bytes.extend(int(proof["pi_a"][0]).to_bytes(32, "big"))
+                packed_bytes.extend(int(proof["pi_a"][1]).to_bytes(32, "big"))
+                
+                # 2. Pack pi_b (G2 Point: X_im, X_re, Y_im, Y_re)
+                # Note: Ethereum's precompile expects the imaginary part first
+                packed_bytes.extend(int(proof["pi_b"][0][1]).to_bytes(32, "big"))
+                packed_bytes.extend(int(proof["pi_b"][0][0]).to_bytes(32, "big"))
+                packed_bytes.extend(int(proof["pi_b"][1][1]).to_bytes(32, "big"))
+                packed_bytes.extend(int(proof["pi_b"][1][0]).to_bytes(32, "big"))
+                
+                # 3. Pack pi_c (G1 Point: X, Y)
+                packed_bytes.extend(int(proof["pi_c"][0]).to_bytes(32, "big"))
+                packed_bytes.extend(int(proof["pi_c"][1]).to_bytes(32, "big"))
+                
+                # The length of packed_bytes will be exactly 256
+                total_size += len(packed_bytes)
+                
         return total_size

@@ -3,6 +3,34 @@ from .utils.fft import fft
 from .utils.multicombs import lincomb
 from .utils.poly_utils import PrimeField
 
+def commit_extension(stem_bytes, child_commitment_bytes, setup_object):
+    """
+    EIP-6800 compliant Extension Node commitment.
+    Commits to: [Node_Type, Stem_Integer, Child_Commitment, 0]
+    """
+    MODULUS = setup_object.MODULUS
+    ROOT_OF_UNITY = setup_object.ROOT_OF_UNITY
+    
+    # 1. Node type for Extension is 1
+    val_type = 1 
+    
+    # 2. Treat the 31-byte stem as a single integer
+    val_stem = int.from_bytes(stem_bytes, byteorder='big')
+    
+    # 3. The child commitment
+    val_child = int.from_bytes(child_commitment_bytes, byteorder='big') if child_commitment_bytes else 0
+    
+    # We pad to 4 or 8 depending on your FFT implementation requirements
+    # Assuming your FFT can handle a width of 4:
+    values = [val_type, val_stem, val_child, 0]
+    
+    # Pad to your setup's required WIDTH (if your FFT strictly requires 256)
+    # values += [0] * (setup_object.WIDTH - len(values))
+    
+    coeffs = fft(values, MODULUS, ROOT_OF_UNITY, inv=True)
+    
+    return b.normalize(lincomb(setup_object.setup[0][:len(coeffs)], coeffs, b.add, b.Z1))
+
 def commit(values, setup_object):
     MODULUS = setup_object.MODULUS
     WIDTH = setup_object.WIDTH

@@ -4,7 +4,6 @@ import os
 from registry.trees import BaseTree, register_tree
 from merkle.nibble_path import NibblePath
 from merkle.node import Node
-from pysnark.runtime import LinComb, PrivVal
 import plyvel
 
 # # Poseidon (pysnark)

@@ -23,3 +23,8 @@ bellman-proof
 *.bbl
 *.snm
 *.env
+**/node_modules/**
+**/package-lock.json
+**/powersOfTau**
+.~lock.results.csv#
+tree_storage/**

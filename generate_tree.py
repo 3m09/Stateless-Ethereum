@@ -4,28 +4,10 @@ from registry.setup import SETUP_REGISTRY
 from datetime import datetime
 from pathlib import Path
 import uuid
+# from helper_scripts.get_eth_data import fetch_trie_kv_pairs
 
-
-def generate_tree(method, width, hash_fn=None, setup=None):
+def generate_tree(method, width, db_path, hash_fn=None, setup=None):
     tree_class = TREE_REGISTRY[method]
-    tree_id = str(uuid.uuid4())
-    storage_root = Path("tree_storage")
-    storage_root.mkdir(parents=True, exist_ok=True)
-
-    db_path = str(storage_root / tree_id)
-    Path(db_path).mkdir(parents=True, exist_ok=True)
-
-    # write tree_info.json from tree_generation_setup.json
-    setup_data = json.load(open("tree_generation_setup.json"))
-    info_path = Path(db_path) / "tree_info.json"
-    with open(info_path, "w") as f:
-        json.dump(setup_data, f, indent=2)
-
-    # append tree id to tree_ids.txt
-    ids_path = "tree_ids.txt"
-    with open(ids_path, "a") as f:
-        f.write(tree_id + "\n")
-
     tree = tree_class(width, db_path=db_path, hash_fn=hash_fn, setup_object=setup)
     return tree
 
@@ -56,37 +38,126 @@ def test():
     
     WIDTH = global_setup["WIDTH"]
     KEY_LENGTH = global_setup["KEY_LENGTH"]
-    VALUE_LENGTH = global_setup["VALUE_LENGTH"]
     SECRET = global_setup["SECRET"]
     TREE_TYPE = global_setup["TREE_TYPE"]
     SETUP_TYPE = global_setup["SETUP_TYPE"]
     HASH_FN = global_setup["HASH_FN"]
+    NUM_KEYS = global_setup["NUM_KEYS"]
 
     setup_object = generate_setup(SETUP_TYPE, SECRET, WIDTH)
     print("Generated setup")
 
-    data = {}
-    with open("data.json") as f:
+    tree_id = str(uuid.uuid4())
+    storage_root = Path("tree_storage")
+    storage_root.mkdir(parents=True, exist_ok=True)
+
+    db_path = str(storage_root / tree_id)
+    # tree_data_path = f"{db_path}/data.json"
+
+    Path(db_path).mkdir(parents=True, exist_ok=True)
+
+    # write tree_info.json from tree_generation_setup.json
+    setup_data = json.load(open("tree_generation_setup.json"))
+    info_path = Path(db_path) / "tree_info.json"
+    with open(info_path, "w") as f:
+        json.dump(setup_data, f, indent=2)
+
+    # append tree id to tree_ids.txt
+    ids_path = "tree_ids.txt"
+    with open(ids_path, "a") as f:
+        f.write(tree_id + "\n")
+
+    # data = fetch_trie_kv_pairs(NUM_KEYS, output_file=tree_data_path)
+    data_file_path = "random_data.json" if TREE_TYPE == "verkle" else "data.json"
+    # data_file_path = "data.json"
+    with open(data_file_path) as f:
         data = json.load(f)
+    
+    data = dict(list(data.items())[:NUM_KEYS])
 
-    print("Loaded random test data")
+    print("Loaded real Ethereum data")
 
-    data_tree = generate_tree(TREE_TYPE, WIDTH, hash_fn=HASH_FN, setup=setup_object)
+    data_tree = generate_tree(TREE_TYPE, WIDTH, db_path=db_path, hash_fn=HASH_FN, setup=setup_object)
 
     print("Generated data tree")
 
+    # for idx, (k, v) in enumerate(data.items()):
+    #     if idx % 100 == 0:
+    #         print(f" Inserting key of index: {idx}")
+    #     # convert key string -> bytes 
+    #     key_bytes = hex_to_bytes(k, KEY_LENGTH)
+
+    #     val_bytes = hex_to_bytes(v, VALUE_LENGTH)
+    #     #v = bytes_to_int(val_bytes)
+
+    #     # insert into tree
+    #     #print("Inserting key:", k, "value:", int(v, 16))
+    #     data_tree.insert(key_bytes, val_bytes)
+    # print("Inserted data into tree")
+
+    # for idx, (k, v) in enumerate(data.items()):
+    #     if idx % 100 == 0:
+    #         print(f" Inserting key of index: {idx}")
+            
+    #     # 1. KEY: Safe to keep fixed length (Ethereum Secure Trie keys are 32-byte hashes)
+    #     key_bytes = hex_to_bytes(k, KEY_LENGTH)  # Assuming KEY_LENGTH is 32
+
+    #     # 2. VALUE: Decode dynamically! Do not force a length.
+    #     # Strip the '0x' prefix if your JSON has it, then convert directly to bytes.
+    #     clean_hex_val = v[2:] if v.startswith('0x') else v
+    #     val_bytes = bytes.fromhex(clean_hex_val)
+
+    #     # insert into tree
+    #     data_tree.insert(key_bytes, val_bytes)
+
+    # print("Inserted data into tree")
+
+    # tree_data_path = f"{db_path}/data.json"
+    # data_to_store = {}
+
     for idx, (k, v) in enumerate(data.items()):
-        if idx % 1000 == 0:
+        if idx % 100 == 0:
             print(f" Inserting key of index: {idx}")
-        # convert key string -> bytes 
-        key_bytes = hex_to_bytes(k, KEY_LENGTH)
+            
+        # 1. KEY: Original 32-byte hash
+        key_bytes = hex_to_bytes(k, KEY_LENGTH)  
 
-        val_bytes = hex_to_bytes(v, VALUE_LENGTH)
-        #v = bytes_to_int(val_bytes)
+        # 2. VALUE: Decode dynamically
+        clean_hex_val = v[2:] if v.startswith('0x') else v
+        val_bytes = bytes.fromhex(clean_hex_val)
 
-        # insert into tree
-        #print("Inserting key:", k, "value:", int(v, 16))
+        # # =========================================================
+        # # 3. CONDITIONAL LOGIC FOR VERKLE SUFFIX TREE
+        # # =========================================================
+        # if TREE_TYPE == "verkle":
+        #     # The Ethereum EAS Tree uses the first 31 bytes as the stem
+        #     base_key = key_bytes[:31]
+            
+        #     # Chop the RLP value into 31-byte scalars so they fit perfectly 
+        #     # inside the BLS12-381 finite field without overflowing!
+        #     CHUNK_SIZE = 31
+        #     chunks = [val_bytes[i:i + CHUNK_SIZE] for i in range(0, len(val_bytes), CHUNK_SIZE)]
+            
+        #     for suffix_index, chunk in enumerate(chunks):
+        #         # The 32nd byte becomes the suffix (0, 1, 2, 3...)
+        #         suffix_byte = suffix_index.to_bytes(1, 'big')
+        #         final_key = base_key + suffix_byte
+                
+        #         # Insert each chunk as its own adjacent leaf
+        #         data_tree.insert(final_key, chunk)
+        #         data_to_store[final_key.hex()] = chunk.hex()
+                
+        # =========================================================
+        # STANDARD MERKLE TRIE
+        # =========================================================
+        # else:
+            # Standard MPT can handle the full 80-byte value in a single leaf
         data_tree.insert(key_bytes, val_bytes)
+    
+    # if TREE_TYPE == "verkle":
+    #     with open(tree_data_path, "w") as f:
+    #         json.dump(data_to_store, f, indent=2)
+
     print("Inserted data into tree")
 
 if __name__ == '__main__':

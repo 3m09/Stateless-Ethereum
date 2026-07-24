@@ -1,13 +1,11 @@
 {
     "TREE_TYPE": "merkle",
-    "HASH_FN": "poseidon",
-    "TREE_ID": "408b5e16-103c-40b2-83a9-b4a51e3d9de8",
-    "PROVER_TYPE": "zksnarkmerkle_poseidon",
-    "VERIFIER_TYPE" : "zksnarkmerkle",
+    "HASH_FN": "keccak",
+    "TREE_ID": "761c00a0-9aac-4ace-b889-2b45846b15c3",
+    "PROVER_TYPE": "zkstarkmerkle",
+    "VERIFIER_TYPE": "zkstarkmerkle",
     "SETUP_TYPE": "",
-    "KEY_LENGTH": 32,
-    "VALUE_LENGTH": 32,
     "WIDTH": 16,
     "SECRET": 1927409816240961209460912649124,
-    "KEYS_TO_PROVE": ["0x0163", "0x036b", "0x012c", "0x02b1", "0x0161"]
+    "NUM_KEYS_TO_PROVE": 16
 }

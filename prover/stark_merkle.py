@@ -253,11 +253,11 @@ class MPTSTARKProver(BaseProver):
         alpha_power = np.uint64(1)
         for col in trace_lde:
             for i in range(n):
-                contribution = field_mul(alpha_power, col[i])
-                composition[i] = field_add(composition[i], contribution)
+                contribution = np.uint64(field_mul(alpha_power, col[i]))
+                composition[i] = field_add(np.uint64(composition[i]), np.uint64(contribution))
             
             # Update alpha power
-            alpha_power = field_mul(alpha_power, alpha)
+            alpha_power = np.uint64(field_mul(alpha_power, alpha))
         
         return composition
     

@@ -110,7 +110,7 @@ class FRIProver:
             odd_val = poly[i + n_half]
             
             # Folded value: even + alpha * odd
-            folded[i] = field_add(even_val, field_mul(alpha, odd_val))
+            folded[i] = np.uint64(field_add(even_val, np.uint64(field_mul(alpha, odd_val))))
         
         return folded
     
