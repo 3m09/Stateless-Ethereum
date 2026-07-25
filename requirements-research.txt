@@ -1,0 +1,7 @@
+# Optional dependencies for the legacy proof/benchmark scripts.
+-r requirements.txt
+
+blake3>=0.3,<2.0
+numpy>=1.24,<2.0
+numba>=0.59,<1.0
+PySNARK @ git+https://github.com/meilof/pysnark@02eb721d7327ced1328783c820b25d5e39575dbc

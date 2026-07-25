@@ -26,8 +26,10 @@ class MerklePatriciaTrie(BaseTree):
     def __init__(self, width=16, db_path='./merkle', hash_fn="keccak", setup_object=None, secure=False, storage=None):
         # BaseTree doesn't have __init__, so we don't call super().__init__()
         # We manage our own state for MPT
-        # if width != 16:
-        #     raise ValueError("MerklePatriciaTrie is hex-based and requires width=16")
+        if not isinstance(width, int) or not 4 <= width <= 128:
+            raise ValueError(
+                "MerklePatriciaTrie width must be between 4 and 128"
+            )
 
         super().__init__(width=width, db_path=db_path, hash_fn=hash_fn, setup_object=setup_object)
 
@@ -71,7 +73,7 @@ class MerklePatriciaTrie(BaseTree):
         if self._secure:
             encoded_key = self.hash(encoded_key)
 
-        path = NibblePath(encoded_key)
+        path = NibblePath(encoded_key, width=self.width)
         new_root_ref = self._update(self._root_ref, path, encoded_value)
 
         self._root_ref = new_root_ref
@@ -97,7 +99,7 @@ class MerklePatriciaTrie(BaseTree):
         if self._secure:
             encoded_key = self.hash(encoded_key)
 
-        path = NibblePath(encoded_key)
+        path = NibblePath(encoded_key, width=self.width)
         node = self._get(self._root_ref, path)
 
         # Expect node to be a Leaf or Branch with data
@@ -127,7 +129,7 @@ class MerklePatriciaTrie(BaseTree):
         if self._secure:
             encoded_key = self.hash(encoded_key)
 
-        path = NibblePath(encoded_key)
+        path = NibblePath(encoded_key, width=self.width)
         proof_nodes = []
 
         def _collect(node_ref, path_obj: NibblePath):
@@ -231,7 +233,7 @@ class MerklePatriciaTrie(BaseTree):
 
 
     def _get_node(self, reference):
-        data = self.db.get(reference)
+        data = reference if len(reference) != 32 else self.db.get(reference)
         if data is None:
             raise KeyError("Node not found: " + reference.hex())
         if self.hash_fn_name == "poseidon":
@@ -323,7 +325,7 @@ class MerklePatriciaTrie(BaseTree):
             path.consume(len(common_prefix))
             node.path.consume(len(common_prefix))
 
-            branches = [b''] * 16
+            branches = [b''] * self.width
             # If rest of path is empty, store value in Branch node's data.
             branch_value = value if len(path) == 0 else b''
 
@@ -364,7 +366,7 @@ class MerklePatriciaTrie(BaseTree):
         """
         assert len(path_a) != 0 or len(path_b) != 0
 
-        branches = [b''] * 16
+        branches = [b''] * self.width
 
         branch_value = b''
         if len(path_a) == 0:
@@ -428,12 +430,8 @@ class MerklePatriciaTrie(BaseTree):
     def get_proof_size(self, commitments, root_hash: bytes) -> int:
         size = 0
         for proof_path in commitments:
-<<<<<<< HEAD
-=======
             # print("proof path length:", len(proof_path))
->>>>>>> refs/remotes/origin/stark_dev
             for rlp_node in proof_path:
                 size += len(rlp_node)
         size += len(root_hash)
         return size
-

@@ -1,0 +1,26 @@
+<div class="dataset-summary">
+  <div>
+    <span>Status</span>
+    <strong class="status-badge large {{ dataset.status.value }}">
+      <i></i>{{ dataset.status.value | capitalize }}
+    </strong>
+  </div>
+  <div>
+    <span>Accounts</span>
+    <strong>{{ dataset.imported_account_count }} / {{ dataset.requested_account_count }}</strong>
+  </div>
+  <div>
+    <span>Pinned block</span>
+    <strong>{{ dataset.block_number or "Resolving…" }}</strong>
+  </div>
+  <div>
+    <span>Chain ID</span>
+    <strong>{{ dataset.chain_id or "—" }}</strong>
+  </div>
+</div>
+{% if dataset.error %}
+  <aside class="alert error-alert dataset-error">
+    <strong>Import failed</strong>
+    <p>{{ dataset.error }}</p>
+  </aside>
+{% endif %}

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Generated trees · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Phase 3 · Tree generation</p>
+      <h1>Build the state. <span>Watch it take shape.</span></h1>
+      <p class="hero-copy">
+        Build Keccak or Poseidon Merkle Patricia Tries and KZG Verkle trees
+        from pinned Ethereum state, then replay account routes through them.
+      </p>
+    </div>
+    <div class="rpc-card {{ 'ready' if datasets else 'missing' }}">
+      <span class="environment-label">Ready datasets</span>
+      {% if datasets %}
+        <strong><i></i> {{ datasets | length }} available</strong>
+        <small>Up to 250 secured keys per tree</small>
+      {% else %}
+        <strong>Dataset required</strong>
+        <small>Complete an Ethereum import first</small>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if errors %}
+    <aside class="alert error-alert" role="alert">
+      <strong>Tree build could not be started</strong>
+      <ul>
+        {% for error in errors %}
+          <li>{{ error.msg }}</li>
+        {% endfor %}
+      </ul>
+    </aside>
+  {% endif %}
+
+  <section class="data-layout">
+    <article class="panel import-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">New structure</p>
+          <h2>Generate persisted tree</h2>
+        </div>
+          <span class="phase-pill">MPT · Poseidon · Verkle</span>
+        </div>
+      {% set defaults = generation_defaults %}
+      <form method="post" action="/trees/builds" class="import-form" data-tree-config-form>
+        <label class="field field-wide">
+          <span>Tree name</span>
+          <input
+            name="name"
+            required
+            maxlength="120"
+            placeholder="Mainnet sample · Keccak MPT"
+            value="{{ form_values.name | default('') }}"
+          >
+        </label>
+        <label class="field field-wide">
+          <span>Source dataset</span>
+          {% set selected_dataset = form_values.dataset_id | default(request.query_params.get('dataset', '')) %}
+          <select name="dataset_id" required {{ 'disabled' if not datasets else '' }}>
+            {% if not datasets %}<option value="">No ready datasets</option>{% endif %}
+            {% for dataset in datasets %}
+              <option value="{{ dataset.id }}" {{ 'selected' if selected_dataset == dataset.id else '' }}>
+                {{ dataset.name }} · {{ dataset.imported_account_count }} accounts · block {{ dataset.block_number }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span>Tree type</span>
+          {% set selected_tree_type = form_values.tree_type | default(defaults.tree_type) %}
+          <select name="tree_type" data-tree-type>
+            <option value="merkle_patricia" {{ 'selected' if selected_tree_type == 'merkle_patricia' else '' }}>Merkle Patricia Trie</option>
+            <option value="poseidon_merkle" {{ 'selected' if selected_tree_type == 'poseidon_merkle' else '' }}>Poseidon Merkle Patricia Trie</option>
+            <option value="verkle" {{ 'selected' if selected_tree_type == 'verkle' else '' }}>Verkle Tree (KZG)</option>
+          </select>
+          <small>Profiles correspond to the registered architecture tree implementations.</small>
+        </label>
+        <label class="field">
+          <span>Hash function</span>
+          {% set selected_hash = form_values.hash_function | default(defaults.hash_function) %}
+          <select name="hash_function" data-tree-hash>
+            <option value="keccak" {{ 'selected' if selected_hash == 'keccak' else '' }}>Keccak-256</option>
+            <option value="poseidon" {{ 'selected' if selected_hash == 'poseidon' else '' }}>Poseidon (BN254)</option>
+            <option value="kzg" {{ 'selected' if selected_hash == 'kzg' else '' }}>KZG commitment hash</option>
+          </select>
+          <small>Only architecture-valid tree/hash combinations are accepted.</small>
+        </label>
+        <label class="field">
+          <span>Setup type</span>
+          {% set selected_setup = form_values.setup_type | default(defaults.setup_type) %}
+          <select name="setup_type" data-tree-setup>
+            <option value="" {{ 'selected' if not selected_setup else '' }}>None</option>
+            <option value="verkle_kzg" {{ 'selected' if selected_setup == 'verkle_kzg' else '' }}>Verkle KZG · BLS12-381</option>
+          </select>
+          <small>MPTs need no setup; Verkle uses the registered `verkle_kzg` setup.</small>
+        </label>
+        <label class="field">
+          <span>Width</span>
+          {% set selected_width = form_values.width | default(defaults.width) | int %}
+          <input
+            name="width"
+            type="number"
+            min="4"
+            max="128"
+            step="1"
+            value="{{ selected_width }}"
+            data-tree-width
+          >
+          <small data-tree-width-help>
+            MPT accepts radix widths 4–128; width 16 is Ethereum-compatible.
+          </small>
+        </label>
+        <label class="field">
+          <span>Key length</span>
+          <input
+            name="key_length"
+            type="number"
+            min="1"
+            max="64"
+            value="{{ form_values.key_length | default(defaults.key_length) }}"
+          >
+          <small>Ethereum secure account keys require 32 bytes.</small>
+        </label>
+        <div class="field field-wide scope-note">
+          <strong>Trusted setup stays server-side</strong>
+          <p>
+            KZG Verkle builds load their setup secret from the server
+            environment. It is never accepted from or rendered in this form.
+          </p>
+        </div>
+        <label class="field">
+          <span>Key count</span>
+          <input
+            name="key_count"
+            type="number"
+            min="1"
+            max="250"
+            placeholder="All available keys"
+            value="{{ form_values.key_count | default(defaults.key_count) }}"
+          >
+          <small>Leave blank to use every account in the selected dataset.</small>
+        </label>
+        <label class="field">
+          <span>Insertion order</span>
+          {% set selected_order = form_values.insertion_order | default('secure_key') %}
+          <select name="insertion_order">
+            <option value="secure_key" {{ 'selected' if selected_order == 'secure_key' else '' }}>Secure key order</option>
+            <option value="dataset" {{ 'selected' if selected_order == 'dataset' else '' }}>Dataset import order</option>
+          </select>
+          <small>The root is deterministic; order controls visual playback.</small>
+        </label>
+        <div class="form-footer field-wide">
+          <p>
+            Submitted public parameters are validated and preserved with the
+            LevelDB, root reference, manifest, and animated topology.
+          </p>
+          <button type="submit" {{ 'disabled' if not datasets else '' }}>
+            Generate tree <span>→</span>
+          </button>
+        </div>
+      </form>
+    </article>
+
+    <aside class="panel provenance-panel">
+      <p class="eyebrow">Build outputs</p>
+      <h2>What gets preserved</h2>
+      <ul class="check-list">
+        <li><i>✓</i><span><strong>LevelDB node store</strong>Tree-specific encoded nodes addressed by hash or commitment</span></li>
+        <li><i>✓</i><span><strong>Experimental root</strong>Keccak, Poseidon, or KZG-derived root for the sample</span></li>
+        <li><i>✓</i><span><strong>Structural metrics</strong>Branch, extension, leaf, depth, key, and timing counts</span></li>
+        <li><i>✓</i><span><strong>Animated topology</strong>Insertion routes with hashes, node types, and RLP sizes</span></li>
+      </ul>
+      <div class="scope-note">
+        <strong>Interpret the root carefully</strong>
+        <p>
+          The generated root authenticates this experiment’s subset. It should
+          not equal the source block’s canonical full-state root.
+        </p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel datasets-panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">Tree library</p><h2>Generated trees</h2></div>
+      <span class="record-count">{{ trees | length }} records</span>
+    </div>
+    {% if trees %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Status</th><th>Type</th><th>Keys / nodes</th><th>Root</th><th>Created</th></tr>
+          </thead>
+          <tbody>
+            {% for tree in trees %}
+              <tr>
+                <td>
+                  <a class="dataset-name" href="/trees/{{ tree.id }}">{{ tree.name }}</a>
+                  <small>{{ tree.id[:8] }}</small>
+                </td>
+                <td><span class="status-badge {{ tree.status.value }}"><i></i>{{ tree.status.value | capitalize }}</span></td>
+                <td>
+                  {{ tree.tree_type.value | replace("_", " ") | title }}
+                  <small>{{ tree.hash_function.value | upper }} · width {{ tree.width }}</small>
+                </td>
+                <td>{{ tree.key_count or tree.requested_key_count }} / {{ tree.node_count or "—" }}</td>
+                <td class="mono-cell" title="{{ tree.root_hash or '' }}">{{ tree.root_hash[:14] ~ '…' if tree.root_hash else 'Pending' }}</td>
+                <td>{{ tree.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state compact">
+        <div class="empty-icon" aria-hidden="true">⌘</div>
+        <strong>No generated trees yet</strong>
+        <p>Your first persisted topology will appear here.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

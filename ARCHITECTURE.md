@@ -19,8 +19,10 @@
 ## Phase 1: Tree Generation
 
 ```
-Configuration
-{TREE_TYPE, HASH_FN, SETUP_TYPE, WIDTH, KEY_LENGTH, SECRET, NUM_KEYS}
+Public configuration
+{TREE_TYPE, HASH_FN, SETUP_TYPE, WIDTH, KEY_LENGTH, NUM_KEYS}
+Server environment
+{TREE_SETUP_SECRET for KZG only}
         │
         ├─► Cryptographic Setup
         │   ┌──────────────────────────────────────────┐
@@ -34,12 +36,12 @@ Configuration
         └─► Tree Construction
             ┌────────────────────────────────────────────────────┐
             │  Merkle Patricia Trie                              │
-            │   • Hex-nibble Patricia trie                       │
+            │   • Configurable radix 4–128 (16 = Ethereum MPT)   │
             │   • Nodes: Leaf / Extension / Branch               │
             │   • Hash: keccak256 OR poseidon                    │
             │                                                    │
             │  Poseidon Merkle Patricia Trie                     │
-            │   • Same structure, Poseidon hash throughout       │
+            │   • Same configurable radix, Poseidon throughout   │
             │   • Required for zkSNARK arithmetisation           │
             │                                                    │
             │  Verkle Tree                                       │

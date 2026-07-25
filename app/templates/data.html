@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Ethereum data · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Phase 2 · Data ingestion</p>
+      <h1>Pin the chain. <span>Preserve the proof.</span></h1>
+      <p class="hero-copy">
+        Import authentic Ethereum account states at an exact block and retain
+        enough provenance to reproduce every tree experiment.
+      </p>
+    </div>
+    <div class="rpc-card {{ 'ready' if rpc_configured else 'missing' }}">
+      <span class="environment-label">Ethereum RPC</span>
+      {% if rpc_configured %}
+        <strong><i></i> Connected configuration</strong>
+        <small>{{ rpc_provider }}</small>
+      {% else %}
+        <strong>Configuration required</strong>
+        <small>Set STATELESS_ETHEREUM_RPC_URL</small>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if errors %}
+    <aside class="alert error-alert" role="alert">
+      <strong>Import could not be started</strong>
+      <ul>
+        {% for error in errors %}
+          <li>{{ error.msg }}</li>
+        {% endfor %}
+      </ul>
+    </aside>
+  {% endif %}
+
+  <section class="data-layout">
+    <article class="panel import-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">New snapshot</p>
+          <h2>Import Ethereum state</h2>
+        </div>
+        <span class="phase-pill">eth_getProof</span>
+      </div>
+      <form method="post" action="/data/imports" class="import-form">
+        <label class="field field-wide">
+          <span>Dataset name</span>
+          <input
+            name="name"
+            required
+            maxlength="120"
+            placeholder="Mainnet accounts · block study"
+            value="{{ form_values.name | default('') }}"
+          >
+        </label>
+        <label class="field">
+          <span>Block</span>
+          <input
+            name="block"
+            required
+            value="{{ form_values.block | default('latest') }}"
+            placeholder="latest or 22500000"
+          >
+          <small>`latest` is immediately pinned to a block number and hash.</small>
+        </label>
+        <label class="field">
+          <span>Address source</span>
+          {% set selected_source = form_values.address_source | default('recent_transactions') %}
+          <select name="address_source">
+            <option value="recent_transactions" {{ 'selected' if selected_source == 'recent_transactions' else '' }}>
+              Recent transaction participants
+            </option>
+            <option value="explicit" {{ 'selected' if selected_source == 'explicit' else '' }}>
+              Explicit address list
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Account count</span>
+          <input
+            name="account_count"
+            type="number"
+            min="1"
+            max="250"
+            value="{{ form_values.account_count | default(25) }}"
+          >
+        </label>
+        <label class="field">
+          <span>Block scan depth</span>
+          <input
+            name="scan_depth"
+            type="number"
+            min="1"
+            max="128"
+            value="{{ form_values.scan_depth | default(20) }}"
+          >
+        </label>
+        <label class="field field-wide">
+          <span>Explicit addresses</span>
+          <textarea
+            name="addresses"
+            rows="5"
+            placeholder="One address per line, or separate with commas"
+          >{{ form_values.addresses | default('') }}</textarea>
+          <small>
+            Used only for the explicit source. Account count is derived from
+            the deduplicated list.
+          </small>
+        </label>
+        <div class="form-footer field-wide">
+          <p>
+            RPC credentials stay in the server environment and are never
+            written to the database or artifacts.
+          </p>
+          <button type="submit" {{ 'disabled' if not rpc_configured else '' }}>
+            Start import <span>→</span>
+          </button>
+        </div>
+      </form>
+    </article>
+
+    <aside class="panel provenance-panel">
+      <p class="eyebrow">Captured provenance</p>
+      <h2>What gets preserved</h2>
+      <ul class="check-list">
+        <li><i>✓</i><span><strong>Exact block</strong>Number, hash, timestamp, and canonical state root</span></li>
+        <li><i>✓</i><span><strong>Account value</strong>RLP of nonce, balance, storage root, and code hash</span></li>
+        <li><i>✓</i><span><strong>Secure trie key</strong>Keccak-256 hash of the 20-byte account address</span></li>
+        <li><i>✓</i><span><strong>Authentication path</strong>Every RLP node returned by eth_getProof</span></li>
+      </ul>
+      <div class="scope-note">
+        <strong>Root scope</strong>
+        <p>
+          Imported values are authentic, but a tree built from this sample is
+          partial. Its experimental root is not the block’s full state root.
+        </p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel datasets-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Library</p>
+        <h2>Ethereum datasets</h2>
+      </div>
+      <span class="record-count">{{ datasets | length }} records</span>
+    </div>
+    {% if datasets %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Block</th>
+              <th>Accounts</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for dataset in datasets %}
+              <tr>
+                <td>
+                  <a class="dataset-name" href="/data/{{ dataset.id }}">{{ dataset.name }}</a>
+                  <small>{{ dataset.id[:8] }} · {{ dataset.network }}</small>
+                </td>
+                <td><span class="status-badge {{ dataset.status.value }}"><i></i>{{ dataset.status.value | capitalize }}</span></td>
+                <td class="mono-cell">{{ dataset.block_number or dataset.requested_block }}</td>
+                <td>{{ dataset.imported_account_count }} / {{ dataset.requested_account_count }}</td>
+                <td>{{ dataset.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state compact">
+        <div class="empty-icon" aria-hidden="true">⬡</div>
+        <strong>No Ethereum datasets yet</strong>
+        <p>Your first pinned snapshot will appear here.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,2 @@
+# Compatibility alias. requirements.txt is the canonical runtime dependency set.
+-r requirements.txt

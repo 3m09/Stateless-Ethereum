@@ -34,11 +34,20 @@ def commit_extension(stem_bytes, child_commitment_bytes, setup_object):
 def commit(values, setup_object):
     MODULUS = setup_object.MODULUS
     WIDTH = setup_object.WIDTH
-    ROOT_OF_UNITY = setup_object.ROOT_OF_UNITY
+    values = [int(value) % MODULUS for value in values]
     values += [0] * (WIDTH - len(values))
-    coeffs = fft(values, MODULUS, ROOT_OF_UNITY, inv=True)
-    
-    return b.normalize(lincomb(setup_object.setup[0][:len(coeffs)], coeffs, b.add, b.Z1))
+
+    # The vector is already in evaluation form. Committing directly against
+    # the setup's Lagrange-basis points is equivalent to inverse-FFT followed
+    # by a powers-of-tau commitment, while avoiding dense work for sparse nodes.
+    commitment = b.Z1
+    for index, value in enumerate(values):
+        if value:
+            commitment = b.add(
+                commitment,
+                b.multiply(setup_object.setup[2][index], value),
+            )
+    return b.normalize(commitment)
 
 def generate_quotient(values, index, setup_object):
     MODULUS = setup_object.MODULUS

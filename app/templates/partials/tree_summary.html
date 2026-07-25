@@ -1,0 +1,18 @@
+<div class="dataset-summary tree-summary">
+  <div>
+    <span>Status</span>
+    <strong class="status-badge large {{ tree.status.value }}">
+      <i></i>{{ tree.status.value | capitalize }}
+    </strong>
+  </div>
+  <div><span>Keys</span><strong>{{ tree.key_count or tree.requested_key_count }}</strong></div>
+  <div><span>Live nodes</span><strong>{{ tree.node_count or "—" }}</strong></div>
+  <div><span>Build time</span><strong>{{ tree.build_duration_ms ~ " ms" if tree.build_duration_ms is not none else "—" }}</strong></div>
+</div>
+{% if tree.error %}
+  <aside class="alert error-alert dataset-error">
+    <strong>Tree generation failed</strong>
+    <p>{{ tree.error }}</p>
+  </aside>
+{% endif %}
+

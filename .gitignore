@@ -28,3 +28,5 @@ bellman-proof
 **/powersOfTau**
 .~lock.results.csv#
 tree_storage/**
+var/**
+.pytest_cache/**

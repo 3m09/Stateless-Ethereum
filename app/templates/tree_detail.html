@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tree.name }} · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="detail-header dataset-header">
+    <div>
+      <a class="back-link" href="/trees">← Generated trees</a>
+      <p class="eyebrow">Persisted experimental tree</p>
+      <h1>{{ tree.name }}</h1>
+      <p class="mono">{{ tree.id }}</p>
+    </div>
+    <span class="network-chip">
+      {{ tree.tree_type.value | replace("_", " ") | title }} ·
+      {{ tree.hash_function.value | upper }} · width {{ tree.width }}
+    </span>
+  </section>
+
+  <section
+    class="panel"
+    id="tree-summary"
+    data-poll-url="/partials/trees/{{ tree.id }}/summary"
+    data-poll-interval="1500"
+  >
+    {% include "partials/tree_summary.html" %}
+  </section>
+
+  {% if tree.status.value == "ready" %}
+    <section
+      class="panel tree-visualizer"
+      data-tree-visualizer
+      data-visualization-url="/api/v1/trees/{{ tree.id }}/visualization"
+    >
+      <div class="viz-header">
+        <div>
+          <p class="eyebrow">Animated topology</p>
+          <h2>Account insertion routes</h2>
+          <p class="viz-explainer">
+            Playback reveals the final tree and highlights each account’s
+            root-to-terminal route in the configured insertion order.
+          </p>
+        </div>
+        <div class="tree-legend" aria-label="Node legend">
+          {% if tree.tree_type.value == "verkle" %}
+            <span><i class="legend-branch"></i>Internal</span>
+            <span><i class="legend-leaf"></i>Suffix</span>
+          {% else %}
+            <span><i class="legend-branch"></i>Branch</span>
+            <span><i class="legend-extension"></i>Extension</span>
+            <span><i class="legend-leaf"></i>Leaf</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="viz-toolbar">
+        <button type="button" class="viz-play" data-viz-play aria-label="Play animation">▶ <span>Play</span></button>
+        <label class="viz-range-label">
+          <span data-viz-counter>0 / {{ tree.key_count }}</span>
+          <input data-viz-range type="range" min="0" max="{{ tree.key_count }}" value="0">
+        </label>
+        <label class="viz-speed-label">
+          Speed
+          <select data-viz-speed>
+            <option value="1200">0.5×</option>
+            <option value="700" selected>1×</option>
+            <option value="350">2×</option>
+          </select>
+        </label>
+        <button type="button" class="button-secondary" data-viz-fit>Fit</button>
+      </div>
+      <div class="viz-stage-shell">
+        <div class="viz-loading" data-viz-loading>
+          <i></i>
+          Loading persisted topology…
+        </div>
+        <svg
+          class="tree-stage"
+          data-viz-stage
+          role="img"
+          aria-label="Animated Merkle Patricia Trie"
+        ></svg>
+        <aside class="node-inspector" data-node-inspector>
+          <p class="eyebrow">Selection</p>
+          <h3>Choose a node</h3>
+          <p>Click any visible node to inspect its hash, type, path, and RLP size.</p>
+        </aside>
+      </div>
+      <div class="insertion-readout">
+        <span data-viz-step-label>Ready to replay</span>
+        <code data-viz-address>No account selected</code>
+      </div>
+    </section>
+  {% elif tree.status.value in ["queued", "building"] %}
+    <section
+      class="panel build-waiting"
+      data-tree-waiting
+      data-tree-status-url="/api/v1/trees/{{ tree.id }}"
+    >
+      <div class="empty-icon build-spinner" aria-hidden="true">⌘</div>
+      <strong>Constructing and persisting the trie</strong>
+      <p>This page will open the animated viewer automatically when the build completes.</p>
+    </section>
+  {% endif %}
+
+  <section class="detail-grid dataset-provenance">
+    <article class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Tree identity</p><h2>Cryptographic output</h2></div>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Experimental root</dt><dd class="mono-value">{{ tree.root_hash or "Pending" }}</dd></div>
+        <div><dt>Hash / commitment</dt><dd>{{ tree.hash_function.value | upper }}</dd></div>
+        <div><dt>Branch width</dt><dd>{{ tree.width }}</dd></div>
+        <div><dt>Setup type</dt><dd>{{ tree.configuration.get("setup_type") or "None" }}</dd></div>
+        <div><dt>Key length</dt><dd>{{ tree.configuration.get("key_length", 32) }} bytes</dd></div>
+        <div><dt>Maximum structural depth</dt><dd>{{ tree.max_depth }}</dd></div>
+        <div><dt>LevelDB storage</dt><dd class="mono-value">{{ tree.storage_path or "Pending" }}</dd></div>
+      </dl>
+    </article>
+    <article class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Source and shape</p><h2>Build provenance</h2></div>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Dataset</dt><dd><a class="inline-link" href="/data/{{ tree.dataset_id }}">{{ dataset.name if dataset else tree.dataset_id[:8] }}</a></dd></div>
+        <div><dt>Canonical state root</dt><dd class="mono-value">{{ dataset.state_root if dataset else "—" }}</dd></div>
+        <div><dt>Leaves / suffix nodes</dt><dd>{{ tree.leaf_count }}</dd></div>
+        <div><dt>Extensions / internal nodes</dt><dd>{{ tree.extension_count }} / {{ tree.branch_count }}</dd></div>
+        <div><dt>Setup secret</dt><dd>Server-managed · hidden</dd></div>
+        <div><dt>Job</dt><dd><a class="inline-link" href="/jobs/{{ tree.job_id }}">{{ tree.job_id[:8] }}</a></dd></div>
+      </dl>
+    </article>
+  </section>
+
+  <aside class="alert scope-alert">
+    <strong>Experimental root, canonical values</strong>
+    <p>
+      Account values come from authenticated Ethereum proofs, but this root
+      commits only to {{ tree.key_count or tree.requested_key_count }} sampled
+      accounts. It is intentionally distinct from the source block’s full
+      state root.
+    </p>
+  </aside>
+{% endblock %}
+
+{% block scripts %}
+  <script defer src="{{ url_for('static', path='tree-viz.js') }}"></script>
+{% endblock %}

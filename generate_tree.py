@@ -4,14 +4,16 @@ from registry.setup import SETUP_REGISTRY
 from datetime import datetime
 from pathlib import Path
 import uuid
-<<<<<<< HEAD
-# from helper_scripts.get_eth_data import fetch_trie_kv_pairs
-=======
+from app.config import get_settings
 from get_eth_data import fetch_trie_kv_pairs
->>>>>>> refs/remotes/origin/stark_dev
 
 def generate_tree(method, width, db_path, hash_fn=None, setup=None):
-    tree_class = TREE_REGISTRY[method]
+    # `poseidon_merkle` is the architecture profile name. It uses the same
+    # Patricia structure as `merkle`, with Poseidon node references.
+    registry_method = "merkle" if method == "poseidon_merkle" else method
+    if method == "poseidon_merkle":
+        hash_fn = "poseidon"
+    tree_class = TREE_REGISTRY[registry_method]
     tree = tree_class(width, db_path=db_path, hash_fn=hash_fn, setup_object=setup)
     return tree
 
@@ -42,13 +44,34 @@ def test():
     
     WIDTH = global_setup["WIDTH"]
     KEY_LENGTH = global_setup["KEY_LENGTH"]
-    SECRET = global_setup["SECRET"]
     TREE_TYPE = global_setup["TREE_TYPE"]
     SETUP_TYPE = global_setup["SETUP_TYPE"]
     HASH_FN = global_setup["HASH_FN"]
     NUM_KEYS = global_setup["NUM_KEYS"]
 
-    setup_object = generate_setup(SETUP_TYPE, SECRET, WIDTH)
+    if KEY_LENGTH != 32:
+        raise ValueError("Ethereum secure account keys require KEY_LENGTH=32")
+    if (
+        TREE_TYPE in {"merkle", "poseidon_merkle"}
+        and not 4 <= WIDTH <= 128
+    ):
+        raise ValueError("Merkle Patricia WIDTH must be between 4 and 128")
+    if TREE_TYPE == "merkle" and HASH_FN not in {"keccak", "poseidon"}:
+        raise ValueError("Merkle HASH_FN must be keccak or poseidon")
+    if TREE_TYPE == "poseidon_merkle" and HASH_FN != "poseidon":
+        raise ValueError("poseidon_merkle requires HASH_FN=poseidon")
+    if TREE_TYPE == "verkle":
+        if SETUP_TYPE != "verkle_kzg":
+            raise ValueError("Verkle currently requires SETUP_TYPE=verkle_kzg")
+        if WIDTH not in {16, 32, 64, 128, 256, 512}:
+            raise ValueError("Unsupported Verkle WIDTH")
+    if NUM_KEYS < 1:
+        raise ValueError("NUM_KEYS must be positive")
+
+    setup_secret = (
+        get_settings().require_tree_setup_secret() if SETUP_TYPE else None
+    )
+    setup_object = generate_setup(SETUP_TYPE, setup_secret, WIDTH)
     print("Generated setup")
 
     tree_id = str(uuid.uuid4())
@@ -62,6 +85,7 @@ def test():
 
     # write tree_info.json from tree_generation_setup.json
     setup_data = json.load(open("tree_generation_setup.json"))
+    setup_data.pop("SECRET", None)
     info_path = Path(db_path) / "tree_info.json"
     with open(info_path, "w") as f:
         json.dump(setup_data, f, indent=2)
@@ -73,10 +97,6 @@ def test():
 
     # data = fetch_trie_kv_pairs(NUM_KEYS, output_file=tree_data_path)
     data_file_path = "random_data.json" if TREE_TYPE == "verkle" else "data.json"
-<<<<<<< HEAD
-    # data_file_path = "data.json"
-=======
->>>>>>> refs/remotes/origin/stark_dev
     with open(data_file_path) as f:
         data = json.load(f)
     
@@ -166,6 +186,15 @@ def test():
     #         json.dump(data_to_store, f, indent=2)
 
     print("Inserted data into tree")
+    root_reference = getattr(data_tree, "_root_ref", None)
+    if root_reference is not None:
+        setup_data["TREE_ID"] = tree_id
+        setup_data["ROOT_REFERENCE"] = "0x" + root_reference.hex()
+        with open(info_path, "w") as f:
+            json.dump(setup_data, f, indent=2)
+        print("Root reference:", setup_data["ROOT_REFERENCE"])
+    if hasattr(data_tree, "db"):
+        data_tree.db.close()
 
 if __name__ == '__main__':
     test()

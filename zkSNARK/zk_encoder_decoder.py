@@ -1,6 +1,15 @@
 from merkle.node import Node
 from merkle.nibble_path import NibblePath
 
+_DYNAMIC_RADIX_MAGIC = b"ZKRP1"
+
+
+def _uses_legacy_hexary_layout(node):
+    if isinstance(node, Node.Branch):
+        return len(node.branches) == 16
+    return getattr(node.path, "_width", 16) == 16
+
+
 # def _zk_encode(node): # Remove 'self' in the prover script
 #     """Canonical 32-byte aligned ZK serialization"""
 #     if isinstance(node, Node.Leaf):
@@ -108,7 +117,15 @@ from merkle.nibble_path import NibblePath
 #     raise TypeError("Unknown node type")
 
 def _zk_encode(node):
-    """Canonical 32-byte aligned ZK serialization"""
+    """Serialize a Poseidon MPT node.
+
+    Width 16 retains the original fixed, circuit-oriented layout. Generalized
+    radix trees use a versioned RLP payload because their paths and branch
+    vectors are variable length.
+    """
+    if not _uses_legacy_hexary_layout(node):
+        return _DYNAMIC_RADIX_MAGIC + node.encode()
+
     if isinstance(node, Node.Leaf):
         path_bytes = node.path.encode(is_leaf=True)
         safe_data = node.data if node.data else b''
@@ -145,6 +162,9 @@ def _zk_encode(node):
 
 def _zk_decode(data):
     """Deserialize recognizing exact 32-byte boundaries"""
+    if data.startswith(_DYNAMIC_RADIX_MAGIC):
+        return Node.decode(data[len(_DYNAMIC_RADIX_MAGIC):])
+
     node_type = int.from_bytes(data[:32], 'big')
     
     if node_type == 1:

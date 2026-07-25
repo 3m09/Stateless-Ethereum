@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Research workspace</p>
+      <h1>Build, prove, <span>measure.</span></h1>
+      <p class="hero-copy">
+        A reproducible laboratory for Ethereum state trees and
+        cryptographic proof systems.
+      </p>
+    </div>
+    <div class="environment-card">
+      <span class="environment-label">Environment</span>
+      <strong>{{ settings.environment | capitalize }}</strong>
+      <small>Persistent job tracking is ready</small>
+    </div>
+  </section>
+
+  <section class="stat-grid" aria-label="Job summary">
+    <article class="stat-card queued">
+      <span>Queued</span>
+      <strong>{{ counts.queued }}</strong>
+      <small>Waiting for workers</small>
+    </article>
+    <article class="stat-card running">
+      <span>Running</span>
+      <strong>{{ counts.running }}</strong>
+      <small>Active operations</small>
+    </article>
+    <article class="stat-card succeeded">
+      <span>Succeeded</span>
+      <strong>{{ counts.succeeded }}</strong>
+      <small>Completed jobs</small>
+    </article>
+    <article class="stat-card failed">
+      <span>Failed</span>
+      <strong>{{ counts.failed }}</strong>
+      <small>Require attention</small>
+    </article>
+  </section>
+
+  <section class="workspace-grid">
+    <article class="panel workflow-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Workflow</p>
+          <h2>Experiment pipeline</h2>
+        </div>
+        <span class="phase-pill">MPT and Verkle generation ready</span>
+      </div>
+      <div class="workflow">
+        <div class="workflow-step">
+          <span class="step-number">01</span>
+          <div>
+            <strong>Import Ethereum data</strong>
+            <small>Pin a block and preserve account proofs</small>
+          </div>
+          <span class="step-state next">Available</span>
+        </div>
+        <div class="workflow-line"></div>
+        <div class="workflow-step">
+          <span class="step-number">02</span>
+          <div>
+            <strong>Generate a state tree</strong>
+            <small>Keccak MPT, Poseidon MPT, or KZG Verkle</small>
+          </div>
+          <span class="step-state next">Available</span>
+        </div>
+        <div class="workflow-line"></div>
+        <div class="workflow-step">
+          <span class="step-number">03</span>
+          <div>
+            <strong>Prove and verify</strong>
+            <small>Run reproducible benchmark experiments</small>
+          </div>
+          <span class="step-state">Planned</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel system-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">System</p>
+          <h2>Foundation status</h2>
+        </div>
+      </div>
+      <dl class="system-list">
+        <div><dt>Web API</dt><dd><i></i> Online</dd></div>
+        <div><dt>Metadata database</dt><dd><i></i> Connected</dd></div>
+        <div><dt>Artifact store</dt><dd><i></i> Ready</dd></div>
+        <div><dt>Worker queue</dt><dd class="muted">Phase 4</dd></div>
+      </dl>
+    </article>
+  </section>
+
+  <section class="panel jobs-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Activity</p>
+        <h2>Recent jobs</h2>
+      </div>
+      <div class="live-indicator"><i></i> Refreshes automatically</div>
+    </div>
+    <div
+      id="jobs-table"
+      data-poll-url="/partials/jobs"
+      data-poll-interval="5000"
+    >
+      {% include "partials/jobs_table.html" %}
+    </div>
+  </section>
+{% endblock %}

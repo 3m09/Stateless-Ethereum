@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>{% block title %}Stateless Ethereum Lab{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+    <script defer src="{{ url_for('static', path='app.js') }}"></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>
+          <strong>Stateless Ethereum</strong>
+          <small>Research laboratory</small>
+        </span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a class="{{ 'active' if section | default('dashboard') == 'dashboard' else '' }}" href="/">Dashboard</a>
+        <a class="{{ 'active' if section | default('') == 'data' else '' }}" href="/data">Data</a>
+        <a class="{{ 'active' if section | default('') == 'trees' else '' }}" href="/trees">Trees</a>
+        <span class="nav-disabled">Experiments</span>
+      </nav>
+      <a class="docs-link" href="/api/docs">API docs <span>↗</span></a>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <footer>
+      <span>Stateless Ethereum thesis demonstrator</span>
+      <span class="footer-status"><i></i> Phase 3 tree generation</span>
+    </footer>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

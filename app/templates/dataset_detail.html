@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dataset.name }} · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="detail-header dataset-header">
+    <div>
+      <a class="back-link" href="/data">← Ethereum data</a>
+      <p class="eyebrow">Pinned dataset</p>
+      <h1>{{ dataset.name }}</h1>
+      <p class="mono">{{ dataset.id }}</p>
+    </div>
+    <div class="header-actions">
+      {% if dataset.status.value == "ready" %}
+        <a class="button-link" href="/trees?dataset={{ dataset.id }}">Generate tree <span>→</span></a>
+      {% endif %}
+      <span class="network-chip">{{ dataset.network }} · {{ dataset.rpc_provider }}</span>
+    </div>
+  </section>
+
+  <section
+    class="panel"
+    id="dataset-summary"
+    data-poll-url="/partials/data/{{ dataset.id }}/summary"
+    data-poll-interval="2000"
+  >
+    {% include "partials/dataset_summary.html" %}
+  </section>
+
+  <section class="detail-grid dataset-provenance">
+    <article class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Canonical source</p><h2>Block provenance</h2></div>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Requested block</dt><dd>{{ dataset.requested_block }}</dd></div>
+        <div><dt>Pinned number</dt><dd>{{ dataset.block_number or "—" }}</dd></div>
+        <div><dt>Block hash</dt><dd class="mono-value">{{ dataset.block_hash or "—" }}</dd></div>
+        <div><dt>State root</dt><dd class="mono-value">{{ dataset.state_root or "—" }}</dd></div>
+        <div><dt>Timestamp</dt><dd>{{ dataset.block_timestamp.isoformat() if dataset.block_timestamp else "—" }}</dd></div>
+      </dl>
+    </article>
+    <article class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Sampling</p><h2>Import configuration</h2></div>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Address source</dt><dd>{{ dataset.address_source.value | replace("_", " ") | title }}</dd></div>
+        <div><dt>Scan depth</dt><dd>{{ dataset.scan_depth }} blocks</dd></div>
+        <div><dt>Requested accounts</dt><dd>{{ dataset.requested_account_count }}</dd></div>
+        <div><dt>Artifact</dt><dd class="mono-value">{{ dataset.artifact_path or "Pending" }}</dd></div>
+        <div><dt>Job</dt><dd><a class="inline-link" href="/jobs/{{ dataset.job_id }}">{{ dataset.job_id[:8] }}</a></dd></div>
+      </dl>
+    </article>
+  </section>
+
+  <aside class="alert scope-alert">
+    <strong>Canonical root versus experimental root</strong>
+    <p>
+      The state root above authenticates the complete Ethereum state at this
+      block. A tree generated later from these sampled accounts is an
+      experimental partial tree and will have a different root.
+    </p>
+  </aside>
+
+  <section class="panel accounts-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Imported state</p>
+        <h2>Account proofs</h2>
+      </div>
+      <span class="record-count">{{ accounts | length }} accounts</span>
+    </div>
+    {% if accounts %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Secure key</th>
+              <th>Balance</th>
+              <th>Nonce</th>
+              <th>Proof</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for account in accounts %}
+              <tr>
+                <td class="mono-cell">{{ account.address }}</td>
+                <td class="mono-cell" title="{{ account.secure_trie_key }}">{{ account.secure_trie_key[:14] }}…</td>
+                <td>{{ account.balance }} wei</td>
+                <td>{{ account.nonce }}</td>
+                <td>{{ account.proof_node_count }} nodes</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state compact">
+        <div class="empty-icon" aria-hidden="true">◇</div>
+        <strong>Proof collection is in progress</strong>
+        <p>Refresh this page to see account rows as they are persisted.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

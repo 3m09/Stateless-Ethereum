@@ -1,5 +1,3 @@
-import math
-
 class NibblePath:
     ODD_FLAG = 0x10
     LEAF_FLAG = 0x20
@@ -14,18 +12,10 @@ class NibblePath:
         if width is None:
             width = 16
 
-        if not isinstance(width, int) or width < 2 or width > 256:
-            raise ValueError("width must be an integer between 2 and 256")
-
-        # Require power-of-two width and byte-aligned digit size to avoid key collisions
-        if (width & (width - 1)) != 0:
-            raise ValueError("width must be a power of two")
-        bits_per_digit = int(math.log2(width))
-        if 8 % bits_per_digit != 0:
-            raise ValueError("width must have digit size dividing 8 bits (e.g., 2, 4, 16, 256)")
+        if not isinstance(width, int) or width < 2 or width > 255:
+            raise ValueError("width must be an integer between 2 and 255")
 
         self._width = width
-        self._bits_per_digit = bits_per_digit
         self._offset = offset
 
         if isinstance(data, (bytes, bytearray)):
@@ -189,16 +179,25 @@ class NibblePath:
 
     def _bytes_to_digits(self, data_bytes: bytes):
         """
-        Convert raw bytes into base-<width> digits.
-        width must have digit-size dividing 8 bits.
+        Convert bytes into a fixed-length base-<width> representation.
+
+        The digit count is the smallest count whose radix capacity can
+        represent every byte string of this length. Leading zero digits are
+        retained, so distinct fixed-length keys cannot collapse to the same
+        path even when the width is not a power of two.
         """
-        digits = []
-        mask = (1 << self._bits_per_digit) - 1
-        step = self._bits_per_digit
+        if not data_bytes:
+            return []
 
-        for b in data_bytes:
-            # Extract digits from most-significant to least-significant bits
-            for shift in range(8 - step, -1, -step):
-                digits.append((b >> shift) & mask)
+        target_capacity = 1 << (len(data_bytes) * 8)
+        digit_count = 1
+        capacity = self._width
+        while capacity < target_capacity:
+            capacity *= self._width
+            digit_count += 1
 
+        value = int.from_bytes(data_bytes, byteorder="big")
+        digits = [0] * digit_count
+        for index in range(digit_count - 1, -1, -1):
+            value, digits[index] = divmod(value, self._width)
         return digits

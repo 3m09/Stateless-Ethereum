@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-bec27700-9b9e-4c02-aefa-24a73f9eac07
-838696b8-bc97-4014-bd71-ebec15c3d8cb
-761c00a0-9aac-4ace-b889-2b45846b15c3
-=======
 f878a524-d22e-46f5-a2f1-8d1e10e5f55c --> real data verkle trie width - 256
 7be66169-d028-4a08-96f4-49e9a6507d12 --> real data merkle trie keccak width - 16
 36a2d086-8919-485a-bdda-e2f6234030fc --> real data merkle trie poseidon width - 16
@@ -58,4 +53,3 @@ d54e8491-5f99-41d2-a944-90a7c90733fe --> merkle, w=4, k=256, poseidon
 94498861-8515-4af7-81e9-3e9612a10349 -->merkle, w=4, k=1024, poseidon working
 0664c4a2-46e4-4bd5-a6eb-99191733d838 -->merkle, w=4, k=512, poseidon working
 d5cc9b63-260f-47f0-bc14-ee77ab5a9064 -->merkle, w=4, k=256, poseidon working
->>>>>>> refs/remotes/origin/stark_dev

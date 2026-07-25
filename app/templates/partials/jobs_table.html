@@ -1,0 +1,51 @@
+{% if jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Progress</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+          <tr>
+            <td>
+              <a class="job-id" href="/jobs/{{ job.id }}">
+                {{ job.id[:8] }}
+              </a>
+              <small>{{ job.message or "No status message" }}</small>
+            </td>
+            <td>{{ job.kind.value | replace("_", " ") | title }}</td>
+            <td>
+              <span class="status-badge {{ job.status.value }}">
+                <i></i>{{ job.status.value | capitalize }}
+              </span>
+            </td>
+            <td>
+              <div class="progress">
+                <span style="width: {{ job.progress }}%"></span>
+              </div>
+              <small>{{ job.progress }}%</small>
+            </td>
+            <td>
+              <time datetime="{{ job.created_at.isoformat() }}">
+                {{ job.created_at.strftime("%Y-%m-%d %H:%M") }}
+              </time>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-icon" aria-hidden="true">◇</div>
+    <strong>No jobs yet</strong>
+    <p>Data imports, tree builds, and proof experiments will appear here.</p>
+    <a href="/api/docs">Explore the job API</a>
+  </div>
+{% endif %}

@@ -6,6 +6,62 @@ from py_ecc import optimized_bls12_381 as b
 PREFIX_INTERNAL = b'\x00'
 PREFIX_EXTENSION = b'\x01'
 PREFIX_SUFFIX = b'\x02'
+FLEXIBLE_NODE_MAGIC = b"VKN1"
+
+
+def serialize_verkle_node_flexible(node_commitment, child_hashes):
+    """Serialize a Verkle vector node with length-delimited child payloads."""
+
+    data = bytearray(FLEXIBLE_NODE_MAGIC)
+    x_int = int(node_commitment[0])
+    y_int = int(node_commitment[1])
+    x_bytes = x_int.to_bytes((x_int.bit_length() + 7) // 8 or 1, "big")
+    y_bytes = y_int.to_bytes((y_int.bit_length() + 7) // 8 or 1, "big")
+    data += len(x_bytes).to_bytes(2, "big") + x_bytes
+    data += len(y_bytes).to_bytes(2, "big") + y_bytes
+    data += len(child_hashes).to_bytes(2, "big")
+    for child in child_hashes:
+        payload = child or b""
+        data += len(payload).to_bytes(4, "big")
+        data += payload
+    return zlib.compress(bytes(data), level=3)
+
+
+def deserialize_verkle_node_flexible(serialized):
+    data = zlib.decompress(serialized)
+    if not data.startswith(FLEXIBLE_NODE_MAGIC):
+        _prefix, commitment, children = deserialize_any_node(serialized)
+        return commitment, children
+
+    index = len(FLEXIBLE_NODE_MAGIC)
+    x_length = int.from_bytes(data[index : index + 2], "big")
+    index += 2
+    x = int.from_bytes(data[index : index + x_length], "big")
+    index += x_length
+    y_length = int.from_bytes(data[index : index + 2], "big")
+    index += 2
+    y = int.from_bytes(data[index : index + y_length], "big")
+    index += y_length
+    width = int.from_bytes(data[index : index + 2], "big")
+    index += 2
+
+    children = []
+    for _child_index in range(width):
+        length = int.from_bytes(data[index : index + 4], "big")
+        index += 4
+        payload = data[index : index + length]
+        index += length
+        children.append(payload or None)
+    return (b.FQ(x), b.FQ(y)), children
+
+
+def serialize_verkle_leaf_flexible(node_commitment, value):
+    return serialize_verkle_node_flexible(node_commitment, [value])
+
+
+def deserialize_verkle_leaf_flexible(serialized):
+    commitment, children = deserialize_verkle_node_flexible(serialized)
+    return commitment, children[0]
 
 def serialize_array_node(node_type_prefix, node_commitment, child_hashes):
     """
