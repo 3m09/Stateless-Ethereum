@@ -15,7 +15,7 @@ async def test_dashboard_and_health_check(client: httpx2.AsyncClient) -> None:
     assert health.status_code == 200
     assert health.json() == {
         "status": "ok",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "database": "ok",
         "artifact_store": "ok",
     }

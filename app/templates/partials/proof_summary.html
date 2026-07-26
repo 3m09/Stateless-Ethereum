@@ -1,0 +1,51 @@
+<div class="section-heading" {% if experiment.status.value in ["ready", "failed"] %}data-terminal="true"{% endif %}>
+  <div>
+    <p class="eyebrow">Experiment state</p>
+    <h2>
+      {% if experiment.status.value == "ready" and experiment.verified %}
+        Proof accepted
+      {% elif experiment.status.value == "ready" %}
+        Verification rejected the proof
+      {% elif experiment.status.value == "failed" %}
+        Experiment failed
+      {% else %}
+        Proof worker is running
+      {% endif %}
+    </h2>
+  </div>
+  <span class="status-badge {{ experiment.status.value }} large">
+    <i></i>{{ experiment.status.value | capitalize }}
+  </span>
+</div>
+{% if experiment.status.value == "ready" %}
+  <div class="stat-grid proof-stat-grid">
+    <div class="stat-card {{ 'succeeded' if experiment.verified else 'failed' }}">
+      <span>Verification</span>
+      <strong>{{ "PASS" if experiment.verified else "FAIL" }}</strong>
+      <small>Bound to the selected root, keys, and values</small>
+    </div>
+    <div class="stat-card queued">
+      <span>Proof size</span>
+      <strong>{{ experiment.proof_size }}</strong>
+      <small>bytes</small>
+    </div>
+    <div class="stat-card running">
+      <span>Proving</span>
+      <strong>{{ "%.4f"|format(experiment.proving_time) }}s</strong>
+      <small>wall-clock duration</small>
+    </div>
+    <div class="stat-card succeeded">
+      <span>Verification</span>
+      <strong>{{ "%.4f"|format(experiment.verification_time) }}s</strong>
+      <small>wall-clock duration</small>
+    </div>
+  </div>
+{% elif experiment.status.value == "failed" %}
+  <aside class="alert error-alert">
+    <strong>The runner returned an error</strong>
+    <p>{{ experiment.error }}</p>
+  </aside>
+{% else %}
+  <div class="progress proof-progress"><span style="width: {{ 50 if experiment.status.value == 'proving' else 5 }}%"></span></div>
+  <p class="waiting-copy">The benchmark record and artifacts will update when proving and verification finish.</p>
+{% endif %}

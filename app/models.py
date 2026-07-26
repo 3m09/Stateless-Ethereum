@@ -6,6 +6,7 @@ from sqlalchemy import (
     JSON,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -67,6 +68,13 @@ class TreeHashFunction(str, Enum):
     KECCAK = "keccak"
     POSEIDON = "poseidon"
     KZG = "kzg"
+
+
+class ProofStatus(str, Enum):
+    QUEUED = "queued"
+    PROVING = "proving"
+    READY = "ready"
+    FAILED = "failed"
 
 
 def enum_values(enum_class: type[Enum]) -> list[str]:
@@ -329,3 +337,75 @@ class GeneratedTree(Base):
     )
 
     dataset: Mapped[EthereumDataset] = relationship(back_populates="trees")
+    proof_experiments: Mapped[list["ProofExperiment"]] = relationship(
+        back_populates="tree",
+    )
+
+
+class ProofExperiment(Base):
+    __tablename__ = "proof_experiments"
+    __table_args__ = (
+        Index(
+            "ix_proof_experiments_status_created_at",
+            "status",
+            "created_at",
+        ),
+        Index("ix_proof_experiments_tree_id", "tree_id"),
+        CheckConstraint(
+            "requested_key_count > 0",
+            name="ck_proof_experiments_requested_key_count",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    tree_id: Mapped[str] = mapped_column(
+        ForeignKey("generated_trees.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("jobs.id", ondelete="RESTRICT"),
+        unique=True,
+        nullable=False,
+    )
+    prover_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    verifier_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    setup_type: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    tree_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_key_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    num_keys_tree: Mapped[int] = mapped_column(Integer, nullable=False)
+    selection_seed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    sampled_keys: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    proof_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    proving_time: Mapped[float | None] = mapped_column(Float, nullable=True)
+    verification_time: Mapped[float | None] = mapped_column(Float, nullable=True)
+    verified: Mapped[bool | None] = mapped_column(nullable=True)
+    root_hash: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    status: Mapped[ProofStatus] = mapped_column(
+        SqlEnum(
+            ProofStatus,
+            values_callable=enum_values,
+            native_enum=False,
+            length=16,
+        ),
+        default=ProofStatus.QUEUED,
+        nullable=False,
+    )
+    artifact_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    tree: Mapped[GeneratedTree] = relationship(back_populates="proof_experiments")

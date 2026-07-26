@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Proof experiments · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Phase 4 · Proving and verification</p>
+      <h1>Generate evidence. <span>Measure the cost.</span></h1>
+      <p class="hero-copy">
+        Sample keys from a persisted tree, generate its compatible proof, verify
+        it against the saved root, and preserve the benchmark as JSON and CSV.
+      </p>
+    </div>
+    <div class="rpc-card {{ 'ready' if trees else 'missing' }}">
+      <span class="environment-label">Ready trees</span>
+      {% if trees %}
+        <strong><i></i> {{ trees | length }} available</strong>
+        <small>Only compatible proof profiles can be submitted</small>
+      {% else %}
+        <strong>Tree required</strong>
+        <small>Generate a persisted tree first</small>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if errors %}
+    <aside class="alert error-alert" role="alert">
+      <strong>Proof experiment could not be started</strong>
+      <ul>
+        {% for error in errors %}<li>{{ error.msg }}</li>{% endfor %}
+      </ul>
+    </aside>
+  {% endif %}
+
+  <section class="data-layout">
+    <article class="panel import-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">New benchmark</p>
+          <h2>Prove a persisted tree</h2>
+        </div>
+        <span class="phase-pill">Prove · verify · persist</span>
+      </div>
+      {% set defaults = proving_defaults %}
+      <form method="post" action="/proofs/experiments" class="import-form" data-proof-form>
+        <label class="field field-wide">
+          <span>Experiment name</span>
+          <input
+            name="name"
+            required
+            maxlength="120"
+            placeholder="MPT optimized · 16 keys"
+            value="{{ form_values.name | default('') }}"
+          >
+        </label>
+        <label class="field field-wide">
+          <span>Generated tree</span>
+          {% set selected_tree = form_values.tree_id | default(defaults.tree_id) %}
+          <select name="tree_id" required data-proof-tree {{ 'disabled' if not trees else '' }}>
+            {% for tree in trees %}
+              <option
+                value="{{ tree.id }}"
+                data-tree-type="{{ tree.tree_type.value }}"
+                data-hash-function="{{ tree.hash_function.value }}"
+                data-key-count="{{ tree.key_count }}"
+                {{ 'selected' if selected_tree == tree.id else '' }}
+              >
+                {{ tree.name }} · {{ tree.tree_type.value | replace("_", " ") | title }}
+                · width {{ tree.width }} · {{ tree.key_count }} keys
+              </option>
+            {% endfor %}
+            {% if not trees %}<option value="">No ready trees</option>{% endif %}
+          </select>
+        </label>
+
+        {% set selected_prover = form_values.prover_type | default(defaults.prover_type) %}
+        {% set selected_verifier = form_values.verifier_type | default(defaults.verifier_type) %}
+        {% set selected_setup = form_values.setup_type | default(defaults.setup_type) %}
+        <label class="field field-wide">
+          <span>Compatible proof profile</span>
+          <select data-proof-profile>
+            {% for profile in profiles %}
+              <option
+                value="{{ profile.id }}"
+                data-tree-type="{{ profile.tree_type }}"
+                data-hash-function="{{ profile.hash_function }}"
+                data-prover="{{ profile.prover_type }}"
+                data-verifier="{{ profile.verifier_type }}"
+                data-setup="{{ profile.setup_type }}"
+                {{ 'selected' if profile.prover_type == selected_prover and profile.verifier_type == selected_verifier and profile.setup_type == selected_setup else '' }}
+              >{{ profile.label }}</option>
+            {% endfor %}
+          </select>
+          <small data-proof-description>
+            The list is filtered using the selected tree’s type and hash.
+          </small>
+        </label>
+        <input type="hidden" name="prover_type" value="{{ selected_prover }}" data-proof-prover>
+        <input type="hidden" name="verifier_type" value="{{ selected_verifier }}" data-proof-verifier>
+        <input type="hidden" name="setup_type" value="{{ selected_setup }}" data-proof-setup>
+
+        <div class="field field-wide proof-contract">
+          <div>
+            <span>Prover</span>
+            <code data-proof-prover-label>{{ selected_prover }}</code>
+          </div>
+          <div>
+            <span>Verifier</span>
+            <code data-proof-verifier-label>{{ selected_verifier }}</code>
+          </div>
+          <div>
+            <span>Setup</span>
+            <code data-proof-setup-label>{{ selected_setup or "none" }}</code>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Keys to prove</span>
+          <input
+            name="num_keys_to_prove"
+            type="number"
+            min="1"
+            max="250"
+            value="{{ form_values.num_keys_to_prove | default(defaults.num_keys_to_prove) }}"
+            data-proof-key-count
+          >
+          <small data-proof-key-help>Cannot exceed the selected tree’s keys.</small>
+        </label>
+        <label class="field">
+          <span>Selection seed</span>
+          <input
+            name="selection_seed"
+            type="number"
+            min="0"
+            max="2147483647"
+            value="{{ form_values.selection_seed | default(defaults.selection_seed) }}"
+          >
+          <small>Reuse this seed to sample the same keys again.</small>
+        </label>
+
+        <div class="field field-wide scope-note">
+          <strong>Setup is resolved per tree</strong>
+          <p>
+            Keccak MPT proofs need no setup. Verkle proofs reconstruct the exact
+            KZG setup from the server-managed secret and the tree’s persisted width.
+          </p>
+        </div>
+        <div class="form-footer field-wide">
+          <p>
+            Results use the same benchmark columns as <code>results.csv</code>
+            and include a reproducible list of sampled addresses and secure keys.
+          </p>
+          <button type="submit" {{ 'disabled' if not trees else '' }}>
+            Run experiment <span>→</span>
+          </button>
+        </div>
+      </form>
+    </article>
+
+    <aside class="panel provenance-panel">
+      <p class="eyebrow">Compatibility</p>
+      <h2>Runnable contracts</h2>
+      <ul class="check-list">
+        <li><i>✓</i><span><strong>Keccak MPT</strong>Standard paths or deduplicated multiproofs, no trusted setup</span></li>
+        <li><i>✓</i><span><strong>KZG Verkle</strong>Optimized aggregated multiproof with <code>verkle_kzg</code></span></li>
+        <li><i>—</i><span><strong>Poseidon MPT</strong>Shown as unsupported until the legacy PySNARK proof contract is complete</span></li>
+      </ul>
+      <div class="scope-note">
+        <strong>Verification is bound to the request</strong>
+        <p>
+          The verifier checks the selected keys, expected Ethereum account
+          values, and the persisted tree root—not only the proof object.
+        </p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel datasets-panel">
+    <div class="section-heading">
+      <div><p class="eyebrow">Benchmark library</p><h2>Proof experiments</h2></div>
+      <span class="record-count">{{ experiments | length }} records</span>
+    </div>
+    {% if experiments %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Status</th><th>Profile</th><th>Keys</th><th>Proof</th><th>Prove / verify</th></tr>
+          </thead>
+          <tbody>
+            {% for item in experiments %}
+              <tr>
+                <td>
+                  <a class="dataset-name" href="/proofs/{{ item.id }}">{{ item.name }}</a>
+                  <small>{{ item.id[:8] }}</small>
+                </td>
+                <td>
+                  <span class="status-badge {{ item.status.value }}"><i></i>{{ item.status.value | capitalize }}</span>
+                  {% if item.status.value == "ready" %}
+                    <small class="{{ 'verified-text' if item.verified else 'failed-text' }}">{{ "Verified" if item.verified else "Rejected" }}</small>
+                  {% endif %}
+                </td>
+                <td>{{ item.prover_type }}<small>{{ item.setup_type or "no setup" }} · width {{ item.width }}</small></td>
+                <td>{{ item.requested_key_count }} / {{ item.num_keys_tree }}</td>
+                <td>{{ item.proof_size ~ " B" if item.proof_size is not none else "—" }}</td>
+                <td>
+                  {% if item.proving_time is not none %}
+                    {{ "%.4f"|format(item.proving_time) }}s / {{ "%.4f"|format(item.verification_time) }}s
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state compact">
+        <div class="empty-icon" aria-hidden="true">π</div>
+        <strong>No proof experiments yet</strong>
+        <p>The first persisted benchmark will appear here.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

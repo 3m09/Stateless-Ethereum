@@ -1,11 +1,12 @@
-from registry.verifiers import BaseVerifier, register_verifier
-from verkle.randomness_scheme import derive_r
 from py_ecc import optimized_bls12_381 as b
+
+from registry.verifiers import BaseVerifier, register_verifier
 from verkle.hash_scheme import generate_root_bytes
+from verkle.randomness_scheme import derive_r
+
 
 @register_verifier("verkle_multiproof_optimized")
 class VerkleMultiproofVerifier(BaseVerifier):
-
     def __init__(self, setup_object):
         self.setup_object = setup_object
 
@@ -18,23 +19,31 @@ class VerkleMultiproofVerifier(BaseVerifier):
         WIDTH = self.setup_object.WIDTH
         field = self.setup_object.field
 
-        unique_commitments = proof_dict['unique_commitments']
-        openings = proof_dict['openings']
-        key_paths = proof_dict['key_paths']
-        root_commitment = proof_dict['root_commitment']
-        witness_tuple = proof_dict['witness']
+        unique_commitments = proof_dict["unique_commitments"]
+        openings = proof_dict["openings"]
+        key_paths = proof_dict["key_paths"]
+        root_commitment = proof_dict["root_commitment"]
+        witness_tuple = proof_dict["witness"]
 
-        root = (b.FQ(root_commitment[0]), b.FQ(root_commitment[1]))
-        r = derive_r(generate_root_bytes(root), key_paths, b.curve_order)
+        supplied_root = (int(root[0]), int(root[1]))
+        if tuple(root_commitment) != supplied_root:
+            return False
+        if proof_dict["keys"] != [key.hex() for key in keys]:
+            return False
+        if proof_dict["values"] != [value.hex() for value in values]:
+            return False
+
+        root_point = (b.FQ(root_commitment[0]), b.FQ(root_commitment[1]))
+        r = derive_r(generate_root_bytes(root_point), key_paths, b.curve_order)
 
         pairing_check = b.FQ12.one()
         r_power = 1
 
         for opening in openings:
-            comm_data = unique_commitments[opening['commitment_idx']]
-            commitment = comm_data['commitment']
-            idx = opening['opening_idx']
-            leaf_value = opening['value']
+            comm_data = unique_commitments[opening["commitment_idx"]]
+            commitment = comm_data["commitment"]
+            idx = opening["opening_idx"]
+            leaf_value = opening["value"]
 
             comm_point = (b.FQ(commitment[0]), b.FQ(commitment[1]), b.FQ.one())
             neg_leaf_times_g1 = b.multiply(b.G1, (MODULUS - leaf_value) % MODULUS)
@@ -54,7 +63,7 @@ class VerkleMultiproofVerifier(BaseVerifier):
         result = b.final_exponentiate(pairing_check)
 
         if result != b.FQ12.one():
-            print(f"Multiproof verification failed!")
+            print("Multiproof verification failed!")
             return False
 
         print("Multiproof verification PASSED!")

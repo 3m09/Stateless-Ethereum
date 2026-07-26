@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -18,6 +19,8 @@ from app.ethereum.rpc import default_rpc_factory
 from app.ethereum.service import RPCFactory
 from app.ethereum.views import router as ethereum_views_router
 from app.migrations import upgrade_database
+from app.proofs.api import router as proofs_api_router
+from app.proofs.views import router as proofs_views_router
 from app.trees.api import router as trees_api_router
 from app.trees.views import router as trees_views_router
 from app.views import router as views_router
@@ -32,6 +35,10 @@ def create_app(
     application_settings = settings or get_settings()
     database = Database(application_settings.database_url)
     artifacts = ArtifactStore(application_settings.artifact_root)
+    proof_executor = ThreadPoolExecutor(
+        max_workers=1,
+        thread_name_prefix="proof-worker",
+    )
 
     @asynccontextmanager
     async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
@@ -45,6 +52,7 @@ def create_app(
             task.cancel()
         if pending_tasks:
             await asyncio.gather(*pending_tasks, return_exceptions=True)
+        proof_executor.shutdown(wait=True, cancel_futures=True)
         database.dispose()
 
     application = FastAPI(
@@ -62,6 +70,7 @@ def create_app(
     application.state.templates = Jinja2Templates(directory=APP_ROOT / "templates")
     application.state.ethereum_rpc_factory = ethereum_rpc_factory
     application.state.background_tasks = set()
+    application.state.proof_executor = proof_executor
 
     static_assets = {
         path.name: path.read_bytes()
@@ -91,9 +100,11 @@ def create_app(
     application.include_router(views_router)
     application.include_router(ethereum_views_router)
     application.include_router(trees_views_router)
+    application.include_router(proofs_views_router)
     application.include_router(api_router)
     application.include_router(ethereum_api_router)
     application.include_router(trees_api_router)
+    application.include_router(proofs_api_router)
     return application
 
 

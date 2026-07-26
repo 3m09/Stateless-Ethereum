@@ -25,7 +25,7 @@
         <a class="{{ 'active' if section | default('dashboard') == 'dashboard' else '' }}" href="/">Dashboard</a>
         <a class="{{ 'active' if section | default('') == 'data' else '' }}" href="/data">Data</a>
         <a class="{{ 'active' if section | default('') == 'trees' else '' }}" href="/trees">Trees</a>
-        <span class="nav-disabled">Experiments</span>
+        <a class="{{ 'active' if section | default('') == 'proofs' else '' }}" href="/proofs">Proofs</a>
       </nav>
       <a class="docs-link" href="/api/docs">API docs <span>↗</span></a>
     </header>
@@ -34,7 +34,7 @@
     </main>
     <footer>
       <span>Stateless Ethereum thesis demonstrator</span>
-      <span class="footer-status"><i></i> Phase 3 tree generation</span>
+      <span class="footer-status"><i></i> Phase 4 proof experiments</span>
     </footer>
     {% block scripts %}{% endblock %}
   </body>

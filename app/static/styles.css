@@ -291,6 +291,37 @@ pre { overflow-x: auto; margin: 0; padding: 18px; border: 1px solid var(--line);
 }
 .field { display: block; }
 .field-wide { grid-column: 1 / -1; }
+.proof-contract {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.proof-contract div {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(7, 19, 15, 0.55);
+}
+.proof-contract span,
+.proof-contract code { display: block; }
+.proof-contract span {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.proof-contract code {
+  overflow: hidden;
+  color: var(--green);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+}
+.proof-progress { width: 100%; margin: 8px 0 12px; }
+.waiting-copy { margin: 0; color: var(--muted); font-size: 0.7rem; }
+.verified-text { color: var(--green); }
+.failed-text { color: var(--red); }
 .field > span {
   display: block;
   margin-bottom: 8px;
@@ -587,6 +618,7 @@ footer { display: flex; justify-content: space-between; width: min(1180px, 92vw)
   .panel { padding: 21px; }
   .import-form { grid-template-columns: 1fr; }
   .field-wide { grid-column: auto; }
+  .proof-contract { grid-template-columns: 1fr; }
   .form-footer { align-items: stretch; flex-direction: column; }
   .form-footer button { width: 100%; }
   .dataset-summary { grid-template-columns: 1fr; }

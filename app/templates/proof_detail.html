@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ experiment.name }} · Stateless Ethereum Lab{% endblock %}
+
+{% block content %}
+  <section class="detail-header dataset-header">
+    <div>
+      <a class="back-link" href="/proofs">← Proof experiments</a>
+      <p class="eyebrow">Persisted proof benchmark</p>
+      <h1>{{ experiment.name }}</h1>
+      <p class="mono">{{ experiment.id }}</p>
+    </div>
+    <span class="network-chip">
+      {{ experiment.prover_type }} · {{ experiment.requested_key_count }} keys
+    </span>
+  </section>
+
+  <section
+    class="panel"
+    id="proof-summary"
+    data-poll-url="/partials/proofs/{{ experiment.id }}/summary"
+    data-poll-interval="1500"
+    data-reload-terminal="true"
+  >
+    {% include "partials/proof_summary.html" %}
+  </section>
+
+  <section class="detail-grid dataset-provenance detail-output">
+    <article class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Proof contract</p><h2>Resolved setup</h2></div>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Tree</dt><dd><a class="inline-link" href="/trees/{{ experiment.tree_id }}">{{ tree.name if tree else experiment.tree_id[:8] }}</a></dd></div>
+        <div><dt>Tree type</dt><dd>{{ experiment.tree_type | replace("_", " ") | title }}</dd></div>
+        <div><dt>Width</dt><dd>{{ experiment.width }}</dd></div>
+        <div><dt>Prover</dt><dd><code>{{ experiment.prover_type }}</code></dd></div>
+        <div><dt>Verifier</dt><dd><code>{{ experiment.verifier_type }}</code></dd></div>
+        <div><dt>Setup</dt><dd><code>{{ experiment.setup_type or "none" }}</code></dd></div>
+        <div><dt>Root</dt><dd class="mono-value">{{ experiment.root_hash or (tree.root_hash if tree else "Pending") }}</dd></div>
+      </dl>
+    </article>
+    <article class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Benchmark input</p><h2>Reproducible sample</h2></div>
+      </div>
+      <dl class="detail-list">
+        <div><dt>Keys requested</dt><dd>{{ experiment.requested_key_count }}</dd></div>
+        <div><dt>Keys in tree</dt><dd>{{ experiment.num_keys_tree }}</dd></div>
+        <div><dt>Selection seed</dt><dd>{{ experiment.selection_seed }}</dd></div>
+        <div><dt>Job</dt><dd><a class="inline-link" href="/jobs/{{ experiment.job_id }}">{{ experiment.job_id[:8] }}</a></dd></div>
+        <div><dt>Result artifact</dt><dd class="mono-value">{{ experiment.artifact_path or "Pending" }}</dd></div>
+        <div><dt>Created</dt><dd>{{ experiment.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</dd></div>
+      </dl>
+    </article>
+  </section>
+
+  {% if experiment.sampled_keys %}
+    <section class="panel datasets-panel detail-output">
+      <div class="section-heading">
+        <div><p class="eyebrow">Selected witnesses</p><h2>Sampled Ethereum account keys</h2></div>
+        <span class="record-count">{{ experiment.sampled_keys | length }} keys</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Address</th><th>Secure trie key</th></tr></thead>
+          <tbody>
+            {% for key in experiment.sampled_keys %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td class="mono-cell">{{ key.address }}</td>
+                <td class="mono-cell" title="{{ key.secure_trie_key }}">{{ key.secure_trie_key[:22] }}…</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  <aside class="alert scope-alert detail-output">
+    <strong>Artifact layout</strong>
+    <p>
+      This run stores <code>request.json</code>, <code>result.json</code>,
+      <code>result.csv</code>, and <code>sampled_keys.json</code>. A cumulative
+      CSV is appended at <code>proofs/results.csv</code> under the artifact root.
+    </p>
+  </aside>
+{% endblock %}
