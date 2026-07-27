@@ -16,7 +16,7 @@
       <span class="environment-label">Ready datasets</span>
       {% if datasets %}
         <strong><i></i> {{ datasets | length }} available</strong>
-        <small>Up to 250 secured keys per tree</small>
+        <small>Up to 2,048 secured keys per tree</small>
       {% else %}
         <strong>Dataset required</strong>
         <small>Complete an Ethereum import first</small>
@@ -137,7 +137,7 @@
             name="key_count"
             type="number"
             min="1"
-            max="250"
+            max="2048"
             placeholder="All available keys"
             value="{{ form_values.key_count | default(defaults.key_count) }}"
           >

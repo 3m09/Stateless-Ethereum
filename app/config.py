@@ -24,13 +24,15 @@ class Settings(BaseSettings):
     dashboard_job_limit: int = Field(default=25, ge=1, le=200)
 
     ethereum_rpc_url: str | None = None
+    ethereum_proof_rpc_url: str | None = None
     ethereum_network: str = "mainnet"
     ethereum_expected_chain_id: int = Field(default=1, ge=1)
     ethereum_request_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
     ethereum_retry_attempts: int = Field(default=3, ge=1, le=10)
     ethereum_retry_backoff_seconds: float = Field(default=0.5, ge=0, le=30)
+    ethereum_proof_concurrency: int = Field(default=8, ge=1, le=32)
     ethereum_min_request_interval_seconds: float = Field(
-        default=0.05,
+        default=0,
         ge=0,
         le=10,
     )

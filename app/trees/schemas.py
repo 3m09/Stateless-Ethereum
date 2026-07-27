@@ -10,6 +10,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.limits import MAX_EXPERIMENT_KEYS
 from app.models import (
     TreeHashFunction,
     TreeStatus,
@@ -38,7 +39,11 @@ class TreeBuildCreate(BaseModel):
     setup_type: str = Field(default="", max_length=32)
     key_length: int = Field(default=32, ge=1, le=64)
     width: int = Field(default=16, ge=2, le=512)
-    key_count: int | None = Field(default=None, ge=1, le=250)
+    key_count: int | None = Field(
+        default=None,
+        ge=1,
+        le=MAX_EXPERIMENT_KEYS,
+    )
     insertion_order: InsertionOrder = InsertionOrder.SECURE_KEY
 
     @field_validator("name")

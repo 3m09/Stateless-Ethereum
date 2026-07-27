@@ -1,4 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.artifacts import ArtifactStore
@@ -8,13 +18,18 @@ from app.ethereum.schemas import (
     EthereumDatasetRead,
     EthereumImportAccepted,
     EthereumImportCreate,
+    LocalEthereumImportCreate,
 )
 from app.ethereum.service import (
+    MAX_LOCAL_JSON_BYTES,
     DatasetNotFound,
     EthereumDatasetService,
+    LocalJSONImportError,
     create_import_records,
+    create_local_import_records,
     schedule_import,
 )
+from app.limits import DEFAULT_ACCOUNT_PAGE_SIZE, MAX_EXPERIMENT_KEYS
 from app.schemas import JobRead
 
 router = APIRouter(prefix="/api/v1/ethereum", tags=["ethereum data"])
@@ -51,6 +66,44 @@ async def create_ethereum_import(
     )
 
 
+@router.post(
+    "/imports/json",
+    response_model=EthereumImportAccepted,
+    status_code=201,
+)
+async def create_local_ethereum_import(
+    request: Request,
+    name: str = Form(...),
+    data_file: UploadFile = File(...),
+    session: Session = Depends(get_database_session),
+    artifacts: ArtifactStore = Depends(get_artifact_store),
+) -> EthereumImportAccepted:
+    try:
+        payload = LocalEthereumImportCreate(name=name)
+        content = await data_file.read(MAX_LOCAL_JSON_BYTES + 1)
+        dataset, job = create_local_import_records(
+            session=session,
+            artifacts=artifacts,
+            settings=request.app.state.settings,
+            name=payload.name,
+            original_filename=data_file.filename,
+            content=content,
+        )
+    except (ValidationError, LocalJSONImportError) as exc:
+        detail = (
+            exc.errors(include_url=False)
+            if isinstance(exc, ValidationError)
+            else str(exc)
+        )
+        raise HTTPException(status_code=422, detail=detail) from exc
+    finally:
+        await data_file.close()
+    return EthereumImportAccepted(
+        dataset=EthereumDatasetRead.model_validate(dataset),
+        job=JobRead.model_validate(job),
+    )
+
+
 @router.get("/datasets", response_model=list[EthereumDatasetRead])
 async def list_ethereum_datasets(
     limit: int = Query(default=50, ge=1, le=200),
@@ -81,7 +134,11 @@ async def get_ethereum_dataset(
 )
 async def list_ethereum_accounts(
     dataset_id: str,
-    limit: int = Query(default=250, ge=1, le=250),
+    limit: int = Query(
+        default=DEFAULT_ACCOUNT_PAGE_SIZE,
+        ge=1,
+        le=MAX_EXPERIMENT_KEYS,
+    ),
     session: Session = Depends(get_database_session),
 ) -> list[EthereumAccountRead]:
     try:

@@ -336,6 +336,10 @@ async def run_tree_build(
                         "block_number": dataset.block_number,
                         "block_hash": dataset.block_hash,
                         "canonical_state_root": dataset.state_root,
+                        "state_mode": dataset.state_mode.value,
+                        "observed_state_root_count": (
+                            dataset.observed_state_root_count
+                        ),
                     },
                     "configuration": {
                         key: value
@@ -366,8 +370,24 @@ async def run_tree_build(
                         ),
                     },
                     "root_scope_note": (
-                        "This experimental root covers only the selected sampled "
-                        "accounts and is not Ethereum's canonical state root."
+                        (
+                            "Source values authenticate against one pinned "
+                            "Ethereum state root. "
+                            if dataset.state_mode.value == "pinned"
+                            else (
+                                "Source values were collected from rolling "
+                                "latest state and may span multiple roots. "
+                                if dataset.state_mode.value == "rolling_latest"
+                                else (
+                                    "Source values came from validated local "
+                                    "RLP input without proof paths. "
+                                )
+                            )
+                        )
+                        + (
+                            "This experimental root covers only the selected "
+                            "sampled accounts."
+                        )
                     ),
                     "completed_at": utc_now(),
                 },

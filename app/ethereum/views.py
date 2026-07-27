@@ -1,6 +1,6 @@
 import re
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -8,14 +8,18 @@ from sqlalchemy.orm import Session
 from app.artifacts import ArtifactStore
 from app.dependencies import get_artifact_store, get_database_session
 from app.ethereum.rpc import rpc_provider_label
-from app.ethereum.schemas import EthereumImportCreate
+from app.ethereum.schemas import EthereumImportCreate, LocalEthereumImportCreate
 from app.ethereum.service import (
+    MAX_LOCAL_JSON_BYTES,
     DatasetNotFound,
     EthereumDatasetService,
+    LocalJSONImportError,
     create_import_records,
+    create_local_import_records,
     schedule_import,
 )
-from app.models import AddressSource
+from app.limits import POWER_OF_TWO_ACCOUNT_COUNTS
+from app.models import AddressSource, StateMode
 
 router = APIRouter(include_in_schema=False)
 
@@ -37,11 +41,14 @@ def data_page_context(
         "settings": settings,
         "rpc_configured": bool(settings.ethereum_rpc_url),
         "rpc_provider": (
-            rpc_provider_label(settings.ethereum_rpc_url)
-            if settings.ethereum_rpc_url
+            rpc_provider_label(
+                settings.ethereum_proof_rpc_url or settings.ethereum_rpc_url
+            )
+            if settings.ethereum_proof_rpc_url or settings.ethereum_rpc_url
             else None
         ),
         "datasets": EthereumDatasetService(session).list(limit=50),
+        "account_count_options": POWER_OF_TWO_ACCOUNT_COUNTS,
         "form_values": form_values or {},
         "errors": errors or [],
     }
@@ -64,10 +71,11 @@ async def create_data_import(
     request: Request,
     name: str = Form(...),
     block: str = Form("latest"),
+    state_mode: str = Form(StateMode.ROLLING_LATEST.value),
     address_source: str = Form(AddressSource.RECENT_TRANSACTIONS.value),
     addresses: str = Form(""),
-    account_count: int = Form(25),
-    scan_depth: int = Form(20),
+    account_count: int = Form(32),
+    scan_depth: int = Form(100),
     session: Session = Depends(get_database_session),
     artifacts: ArtifactStore = Depends(get_artifact_store),
 ):
@@ -75,6 +83,7 @@ async def create_data_import(
     form_values = {
         "name": name,
         "block": block,
+        "state_mode": state_mode,
         "address_source": address_source,
         "addresses": addresses,
         "account_count": account_count,
@@ -104,6 +113,7 @@ async def create_data_import(
         payload = EthereumImportCreate(
             name=name,
             block=block,
+            state_mode=state_mode,
             address_source=address_source,
             addresses=split_addresses(addresses),
             account_count=account_count,
@@ -130,6 +140,48 @@ async def create_data_import(
     )
     schedule_import(request.app, dataset.id, payload)
     return RedirectResponse(url=f"/data/{dataset.id}", status_code=303)
+
+
+@router.post("/data/import-json", response_class=HTMLResponse)
+async def create_local_data_import(
+    request: Request,
+    name: str = Form(...),
+    data_file: UploadFile = File(...),
+    session: Session = Depends(get_database_session),
+    artifacts: ArtifactStore = Depends(get_artifact_store),
+):
+    form_values = {"local_name": name}
+    try:
+        payload = LocalEthereumImportCreate(name=name)
+        content = await data_file.read(MAX_LOCAL_JSON_BYTES + 1)
+        dataset, _job = create_local_import_records(
+            session=session,
+            artifacts=artifacts,
+            settings=request.app.state.settings,
+            name=payload.name,
+            original_filename=data_file.filename,
+            content=content,
+        )
+    except ValidationError as exc:
+        errors = exc.errors(include_url=False)
+    except LocalJSONImportError as exc:
+        errors = [{"msg": str(exc)}]
+    else:
+        return RedirectResponse(url=f"/data/{dataset.id}", status_code=303)
+    finally:
+        await data_file.close()
+
+    return request.app.state.templates.TemplateResponse(
+        request=request,
+        name="data.html",
+        context=data_page_context(
+            request,
+            session,
+            form_values=form_values,
+            errors=errors,
+        ),
+        status_code=422,
+    )
 
 
 @router.get("/data/{dataset_id}", response_class=HTMLResponse)

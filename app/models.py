@@ -49,6 +49,13 @@ class DatasetStatus(str, Enum):
 class AddressSource(str, Enum):
     EXPLICIT = "explicit"
     RECENT_TRANSACTIONS = "recent_transactions"
+    LOCAL_JSON = "local_json"
+
+
+class StateMode(str, Enum):
+    PINNED = "pinned"
+    ROLLING_LATEST = "rolling_latest"
+    LOCAL_IMPORT = "local_import"
 
 
 class TreeStatus(str, Enum):
@@ -180,6 +187,16 @@ class EthereumDataset(Base):
         ),
         nullable=False,
     )
+    state_mode: Mapped[StateMode] = mapped_column(
+        SqlEnum(
+            StateMode,
+            values_callable=enum_values,
+            native_enum=False,
+            length=24,
+        ),
+        default=StateMode.PINNED,
+        nullable=False,
+    )
     requested_account_count: Mapped[int] = mapped_column(Integer, nullable=False)
     imported_account_count: Mapped[int] = mapped_column(
         Integer,
@@ -187,6 +204,11 @@ class EthereumDataset(Base):
         nullable=False,
     )
     scan_depth: Mapped[int] = mapped_column(Integer, nullable=False)
+    observed_state_root_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
     status: Mapped[DatasetStatus] = mapped_column(
         SqlEnum(
             DatasetStatus,
@@ -244,7 +266,7 @@ class EthereumAccount(Base):
         ForeignKey("ethereum_datasets.id", ondelete="CASCADE"),
         nullable=False,
     )
-    address: Mapped[str] = mapped_column(String(42), nullable=False)
+    address: Mapped[str | None] = mapped_column(String(42), nullable=True)
     secure_trie_key: Mapped[str] = mapped_column(String(66), nullable=False)
     account_rlp: Mapped[str] = mapped_column(Text, nullable=False)
     nonce: Mapped[str] = mapped_column(String(78), nullable=False)
@@ -253,6 +275,10 @@ class EthereumAccount(Base):
     code_hash: Mapped[str] = mapped_column(String(66), nullable=False)
     account_proof: Mapped[list] = mapped_column(JSON, nullable=False)
     proof_node_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    proof_state_root: Mapped[str | None] = mapped_column(
+        String(66),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,

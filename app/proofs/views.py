@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.artifacts import ArtifactStore
 from app.dependencies import get_artifact_store, get_database_session
+from app.limits import MAX_EXPERIMENT_KEYS
 from app.models import GeneratedTree, TreeStatus
 from app.proofs.profiles import (
     PROOF_PROFILES,
@@ -57,7 +58,7 @@ def proving_defaults() -> dict:
             "setup_type": str(configured.get("SETUP_TYPE", "")).lower(),
             "num_keys_to_prove": min(
                 max(int(configured.get("NUM_KEYS_TO_PROVE", 1)), 1),
-                250,
+                MAX_EXPERIMENT_KEYS,
             ),
         }
     )
