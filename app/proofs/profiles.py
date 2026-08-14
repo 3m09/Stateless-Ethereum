@@ -45,6 +45,26 @@ PROOF_PROFILES = (
         description="Shared encoded MPT nodes are stored only once.",
     ),
     ProofProfile(
+        id="mpt_stark",
+        label="MPT Stark proof",
+        tree_type=TreeType.MERKLE_PATRICIA,
+        hash_function=TreeHashFunction.KECCAK,
+        prover_type="zkstarkmerkle",
+        verifier_type="zkstarkmerkle",
+        setup_type="",
+        description="One complete Keccak MPT path per sampled key but proven with Stark.",
+    ),
+    ProofProfile(
+        id="mpt_snark",
+        label="MPT SNARK proof",
+        tree_type=TreeType.POSEIDON_MERKLE,
+        hash_function=TreeHashFunction.POSEIDON,
+        prover_type="zksnarkmerkle",
+        verifier_type="zksnarkmerkle",
+        setup_type="",
+        description="One complete Keccak MPT path per sampled key but proven with SNARK.",
+    ),
+    ProofProfile(
         id="verkle_multiproof_optimized",
         label="Verkle optimized KZG multiproof",
         tree_type=TreeType.VERKLE,
@@ -84,11 +104,11 @@ def resolve_profile(
             and profile.setup_type == setup_type
         ):
             return profile
-    if tree.tree_type == TreeType.POSEIDON_MERKLE:
-        raise UnsupportedProofProfile(
-            "Poseidon proving is not available: the thesis PySNARK prover and "
-            "verifier do not yet share a complete proof contract."
-        )
+    # if tree.tree_type == TreeType.POSEIDON_MERKLE:
+    #     raise UnsupportedProofProfile(
+    #         "Poseidon proving is not available: the thesis PySNARK prover and "
+    #         "verifier do not yet share a complete proof contract."
+    #     )
     raise UnsupportedProofProfile(
         "The selected prover, verifier, and setup are not compatible with "
         f"this {tree.tree_type.value} tree."
