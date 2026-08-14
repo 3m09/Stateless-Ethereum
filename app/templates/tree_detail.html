@@ -122,7 +122,7 @@
       </div>
       <dl class="detail-list">
         <div><dt>Dataset</dt><dd><a class="inline-link" href="/data/{{ tree.dataset_id }}">{{ dataset.name if dataset else tree.dataset_id[:8] }}</a></dd></div>
-        <div><dt>Canonical state root</dt><dd class="mono-value">{{ dataset.state_root if dataset else "—" }}</dd></div>
+        <div><dt>{% if dataset and dataset.state_mode.value == "pinned" %}Canonical state root{% elif dataset and dataset.state_mode.value == "rolling_latest" %}Discovery state root{% else %}Source state root{% endif %}</dt><dd class="mono-value">{{ dataset.state_root if dataset and dataset.state_root else "Unavailable" }}</dd></div>
         <div><dt>Leaves / suffix nodes</dt><dd>{{ tree.leaf_count }}</dd></div>
         <div><dt>Extensions / internal nodes</dt><dd>{{ tree.extension_count }} / {{ tree.branch_count }}</dd></div>
         <div><dt>Setup secret</dt><dd>Server-managed · hidden</dd></div>
@@ -134,7 +134,7 @@
   <aside class="alert scope-alert">
     <strong>Experimental root, canonical values</strong>
     <p>
-      Account values come from authenticated Ethereum proofs, but this root
+      Account values come from {% if dataset and dataset.state_mode.value == "local_import" %}validated local RLP input without included proof paths{% else %}authenticated Ethereum proofs{% if dataset and dataset.state_mode.value == "rolling_latest" %} collected across rolling latest state{% endif %}{% endif %}, but this root
       commits only to {{ tree.key_count or tree.requested_key_count }} sampled
       accounts. It is intentionally distinct from the source block’s full
       state root.

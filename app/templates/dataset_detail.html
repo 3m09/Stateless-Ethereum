@@ -6,7 +6,15 @@
   <section class="detail-header dataset-header">
     <div>
       <a class="back-link" href="/data">← Ethereum data</a>
-      <p class="eyebrow">Pinned dataset</p>
+      <p class="eyebrow">
+        {% if dataset.state_mode.value == "pinned" %}
+          Pinned dataset
+        {% elif dataset.state_mode.value == "rolling_latest" %}
+          Rolling latest dataset
+        {% else %}
+          Local JSON dataset
+        {% endif %}
+      </p>
       <h1>{{ dataset.name }}</h1>
       <p class="mono">{{ dataset.id }}</p>
     </div>
@@ -30,11 +38,11 @@
   <section class="detail-grid dataset-provenance">
     <article class="panel">
       <div class="section-heading">
-        <div><p class="eyebrow">Canonical source</p><h2>Block provenance</h2></div>
+        <div><p class="eyebrow">{{ "Local source" if dataset.state_mode.value == "local_import" else "Canonical source" }}</p><h2>{{ "File provenance" if dataset.state_mode.value == "local_import" else "Block provenance" }}</h2></div>
       </div>
       <dl class="detail-list">
         <div><dt>Requested block</dt><dd>{{ dataset.requested_block }}</dd></div>
-        <div><dt>Pinned number</dt><dd>{{ dataset.block_number or "—" }}</dd></div>
+        <div><dt>{% if dataset.state_mode.value == "pinned" %}Pinned number{% elif dataset.state_mode.value == "rolling_latest" %}Discovery anchor number{% else %}Block number{% endif %}</dt><dd>{{ dataset.block_number or "Unavailable in local JSON" }}</dd></div>
         <div><dt>Block hash</dt><dd class="mono-value">{{ dataset.block_hash or "—" }}</dd></div>
         <div><dt>State root</dt><dd class="mono-value">{{ dataset.state_root or "—" }}</dd></div>
         <div><dt>Timestamp</dt><dd>{{ dataset.block_timestamp.isoformat() if dataset.block_timestamp else "—" }}</dd></div>
@@ -46,6 +54,8 @@
       </div>
       <dl class="detail-list">
         <div><dt>Address source</dt><dd>{{ dataset.address_source.value | replace("_", " ") | title }}</dd></div>
+        <div><dt>State mode</dt><dd>{{ dataset.state_mode.value | replace("_", " ") | title }}</dd></div>
+        <div><dt>Observed proof roots</dt><dd>{{ dataset.observed_state_root_count }}</dd></div>
         <div><dt>Scan depth</dt><dd>{{ dataset.scan_depth }} blocks</dd></div>
         <div><dt>Requested accounts</dt><dd>{{ dataset.requested_account_count }}</dd></div>
         <div><dt>Artifact</dt><dd class="mono-value">{{ dataset.artifact_path or "Pending" }}</dd></div>
@@ -55,12 +65,16 @@
   </section>
 
   <aside class="alert scope-alert">
-    <strong>Canonical root versus experimental root</strong>
-    <p>
-      The state root above authenticates the complete Ethereum state at this
-      block. A tree generated later from these sampled accounts is an
-      experimental partial tree and will have a different root.
-    </p>
+    {% if dataset.state_mode.value == "pinned" %}
+      <strong>Canonical root versus experimental root</strong>
+      <p>Every proof authenticates against the pinned root above. A generated partial tree will have a different root.</p>
+    {% elif dataset.state_mode.value == "rolling_latest" %}
+      <strong>Rolling-state collection</strong>
+      <p>Proofs may come from multiple latest blocks. Each account stores its own authenticated proof root; the block above is the discovery anchor.</p>
+    {% else %}
+      <strong>Locally supplied values</strong>
+      <p>The secure keys and account RLP values were validated and decoded from the uploaded JSON. Original addresses, block metadata, and proof paths were not present and remain unavailable.</p>
+    {% endif %}
   </aside>
 
   <section class="panel accounts-panel">
@@ -81,21 +95,26 @@
               <th>Balance</th>
               <th>Nonce</th>
               <th>Proof</th>
+              <th>Proof root</th>
             </tr>
           </thead>
           <tbody>
             {% for account in accounts %}
               <tr>
-                <td class="mono-cell">{{ account.address }}</td>
+                <td class="mono-cell">{{ account.address or "Unavailable" }}</td>
                 <td class="mono-cell" title="{{ account.secure_trie_key }}">{{ account.secure_trie_key[:14] }}…</td>
                 <td>{{ account.balance }} wei</td>
                 <td>{{ account.nonce }}</td>
-                <td>{{ account.proof_node_count }} nodes</td>
+                <td>{{ account.proof_node_count ~ " nodes" if account.proof_node_count else "Not included" }}</td>
+                <td class="mono-cell" title="{{ account.proof_state_root or '' }}">{{ account.proof_state_root[:14] ~ '…' if account.proof_state_root else '—' }}</td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% if dataset.imported_account_count > accounts | length %}
+        <p class="table-note">Showing the first {{ accounts | length }} of {{ dataset.imported_account_count }} accounts. The API can return all 2,048.</p>
+      {% endif %}
     {% else %}
       <div class="empty-state compact">
         <div class="empty-icon" aria-hidden="true">◇</div>

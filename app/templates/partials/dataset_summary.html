@@ -10,8 +10,8 @@
     <strong>{{ dataset.imported_account_count }} / {{ dataset.requested_account_count }}</strong>
   </div>
   <div>
-    <span>Pinned block</span>
-    <strong>{{ dataset.block_number or "Resolving…" }}</strong>
+    <span>{% if dataset.state_mode.value == "pinned" %}Pinned block{% elif dataset.state_mode.value == "rolling_latest" %}Discovery anchor{% else %}Source{% endif %}</span>
+    <strong>{{ dataset.block_number or ("Local JSON" if dataset.state_mode.value == "local_import" else "Resolving…") }}</strong>
   </div>
   <div>
     <span>Chain ID</span>

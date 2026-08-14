@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.artifacts import ArtifactStore
 from app.dependencies import get_artifact_store, get_database_session
+from app.limits import MAX_EXPERIMENT_KEYS
 from app.models import DatasetStatus, EthereumDataset, TreeType
 from app.trees.schemas import TreeBuildCreate
 from app.trees.service import (
@@ -55,7 +56,10 @@ def tree_generation_defaults() -> dict:
             "setup_type": str(configured.get("SETUP_TYPE", "")),
             "key_length": configured.get("KEY_LENGTH", 32),
             "width": configured.get("WIDTH", 16),
-            "key_count": min(int(configured.get("NUM_KEYS", 25)), 250),
+            "key_count": min(
+                int(configured.get("NUM_KEYS", 25)),
+                MAX_EXPERIMENT_KEYS,
+            ),
         }
     )
     if defaults["tree_type"] == "verkle":

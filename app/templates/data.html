@@ -6,10 +6,10 @@
   <section class="page-header">
     <div>
       <p class="eyebrow">Phase 2 · Data ingestion</p>
-      <h1>Pin the chain. <span>Preserve the proof.</span></h1>
+      <h1>Sample the chain. <span>Preserve every proof.</span></h1>
       <p class="hero-copy">
-        Import authentic Ethereum account states at an exact block and retain
-        enough provenance to reproduce every tree experiment.
+        Import up to 2,048 authentic Ethereum account states and retain each
+        proof root for reproducible tree experiments.
       </p>
     </div>
     <div class="rpc-card {{ 'ready' if rpc_configured else 'missing' }}">
@@ -63,7 +63,21 @@
             value="{{ form_values.block | default('latest') }}"
             placeholder="latest or 22500000"
           >
-          <small>`latest` is immediately pinned to a block number and hash.</small>
+          <small>Rolling mode requires `latest`; pinned mode accepts a tag or number.</small>
+        </label>
+        <label class="field">
+          <span>State consistency</span>
+          {% set selected_mode = form_values.state_mode | default('rolling_latest') %}
+          <select name="state_mode">
+            <option value="rolling_latest" {{ 'selected' if selected_mode == 'rolling_latest' else '' }}>
+              Rolling latest · large collection (recommended)
+            </option>
+            <option value="pinned" {{ 'selected' if selected_mode == 'pinned' else '' }}>
+              Pinned block · strict snapshot
+            </option>
+          </select>
+          <small><strong>Rolling latest:</strong> fastest for large experiments; proofs may span several recent state roots.</small>
+          <small><strong>Pinned block:</strong> every proof must match one block root; requires historical proof support.</small>
         </label>
         <label class="field">
           <span>Address source</span>
@@ -76,16 +90,20 @@
               Explicit address list
             </option>
           </select>
+          <small><strong>Recent transactions:</strong> discovers unique sender and recipient addresses from recent blocks.</small>
+          <small><strong>Explicit list:</strong> imports only the addresses entered below; the deduplicated total must be a power of two.</small>
         </label>
         <label class="field">
           <span>Account count</span>
-          <input
-            name="account_count"
-            type="number"
-            min="1"
-            max="250"
-            value="{{ form_values.account_count | default(25) }}"
-          >
+          {% set selected_count = form_values.account_count | default(32) | int %}
+          <select name="account_count">
+            {% for count in account_count_options %}
+              <option value="{{ count }}" {{ 'selected' if selected_count == count else '' }}>
+                {{ count }} account{{ '' if count == 1 else 's' }}
+              </option>
+            {% endfor %}
+          </select>
+          <small>Power-of-two sample sizes make comparisons across 1–2,048 leaves consistent.</small>
         </label>
         <label class="field">
           <span>Block scan depth</span>
@@ -93,8 +111,8 @@
             name="scan_depth"
             type="number"
             min="1"
-            max="128"
-            value="{{ form_values.scan_depth | default(20) }}"
+            max="512"
+            value="{{ form_values.scan_depth | default(100) }}"
           >
         </label>
         <label class="field field-wide">
@@ -106,7 +124,7 @@
           >{{ form_values.addresses | default('') }}</textarea>
           <small>
             Used only for the explicit source. Account count is derived from
-            the deduplicated list.
+            the deduplicated list and must be 1, 2, 4, …, or 2,048.
           </small>
         </label>
         <div class="form-footer field-wide">
@@ -125,10 +143,11 @@
       <p class="eyebrow">Captured provenance</p>
       <h2>What gets preserved</h2>
       <ul class="check-list">
-        <li><i>✓</i><span><strong>Exact block</strong>Number, hash, timestamp, and canonical state root</span></li>
+        <li><i>✓</i><span><strong>Collection anchor</strong>Number, hash, timestamp, and discovery state root</span></li>
         <li><i>✓</i><span><strong>Account value</strong>RLP of nonce, balance, storage root, and code hash</span></li>
         <li><i>✓</i><span><strong>Secure trie key</strong>Keccak-256 hash of the 20-byte account address</span></li>
         <li><i>✓</i><span><strong>Authentication path</strong>Every RLP node returned by eth_getProof</span></li>
+        <li><i>✓</i><span><strong>Proof root</strong>The authenticated state root derived for every account</span></li>
       </ul>
       <div class="scope-note">
         <strong>Root scope</strong>
@@ -138,6 +157,57 @@
         </p>
       </div>
     </aside>
+  </section>
+
+  <section class="panel import-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Local dataset</p>
+        <h2>Import trie key/value JSON</h2>
+      </div>
+      <span class="phase-pill">No RPC required</span>
+    </div>
+    <form
+      method="post"
+      action="/data/import-json"
+      enctype="multipart/form-data"
+      class="import-form"
+    >
+      <label class="field">
+        <span>Dataset name</span>
+        <input
+          name="name"
+          required
+          maxlength="120"
+          placeholder="Local Ethereum trie sample"
+          value="{{ form_values.local_name | default('') }}"
+        >
+      </label>
+      <label class="field">
+        <span>JSON file</span>
+        <input
+          name="data_file"
+          type="file"
+          accept=".json,application/json"
+          required
+        >
+        <small>Expected format: <code>{"0x32-byte-secure-key": "0x-account-rlp"}</code>.</small>
+        <small>The file must contain a power-of-two number of entries from 1 through 2,048.</small>
+      </label>
+      <div class="scope-note field-wide">
+        <strong>What local import can preserve</strong>
+        <p>
+          Secure trie keys and RLP account values are decoded and stored as a
+          ready dataset. This format does not contain original addresses,
+          block metadata, or proof paths, so those fields remain unavailable
+          rather than being fabricated.
+        </p>
+      </div>
+      <div class="form-footer field-wide">
+        <p>The normalized upload and its SHA-256 digest are stored in the dataset artifact directory.</p>
+        <button type="submit">Import local JSON <span>→</span></button>
+      </div>
+    </form>
   </section>
 
   <section class="panel datasets-panel">
@@ -180,7 +250,7 @@
       <div class="empty-state compact">
         <div class="empty-icon" aria-hidden="true">⬡</div>
         <strong>No Ethereum datasets yet</strong>
-        <p>Your first pinned snapshot will appear here.</p>
+        <p>Your first live or local dataset will appear here.</p>
       </div>
     {% endif %}
   </section>

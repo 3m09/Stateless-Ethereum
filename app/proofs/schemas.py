@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.limits import MAX_EXPERIMENT_KEYS
 from app.models import ProofStatus
 from app.schemas import JobRead
 
@@ -14,7 +15,11 @@ class ProofExperimentCreate(BaseModel):
     prover_type: str = Field(min_length=1, max_length=64)
     verifier_type: str = Field(min_length=1, max_length=64)
     setup_type: str = Field(default="", max_length=64)
-    num_keys_to_prove: int = Field(default=1, ge=1, le=250)
+    num_keys_to_prove: int = Field(
+        default=1,
+        ge=1,
+        le=MAX_EXPERIMENT_KEYS,
+    )
     selection_seed: int = Field(default=0, ge=0, le=2_147_483_647)
 
     @field_validator("name")
