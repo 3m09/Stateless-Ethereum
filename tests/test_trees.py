@@ -150,6 +150,9 @@ async def test_tree_build_persists_leveldb_metrics_and_visualization(
     detail = await client.get(f"/trees/{tree['id']}")
     assert detail.status_code == 200
     assert "Animated topology" in detail.text
+    assert "Choose a node" in detail.text
+    assert "data-node-clear" in detail.text
+    assert "Clear selected node" in detail.text
     assert tree["root_hash"] in detail.text
 
 

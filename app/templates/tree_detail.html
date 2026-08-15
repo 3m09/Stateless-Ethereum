@@ -79,9 +79,19 @@
           aria-label="Animated Merkle Patricia Trie"
         ></svg>
         <aside class="node-inspector" data-node-inspector>
-          <p class="eyebrow">Selection</p>
-          <h3>Choose a node</h3>
-          <p>Click any visible node to inspect its hash, type, path, and RLP size.</p>
+          <button
+            type="button"
+            class="node-inspector-close"
+            data-node-clear
+            aria-label="Clear selected node"
+            title="Clear selected node"
+            hidden
+          >×</button>
+          <div data-node-inspector-content>
+            <p class="eyebrow">Selection</p>
+            <h3>Choose a node</h3>
+            <p>Click any visible node to inspect its hash, type, path, and RLP size.</p>
+          </div>
         </aside>
       </div>
       <div class="insertion-readout">

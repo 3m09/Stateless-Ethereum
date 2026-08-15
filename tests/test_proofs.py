@@ -176,6 +176,8 @@ async def test_mpt_proof_experiment_supports_configured_radix_and_csv(
     page = await client.get(f"/proofs/{experiment_id}")
     assert page.status_code == 200
     assert "Proof accepted" in page.text
+    assert "data-poll-url" not in page.text
+    assert "data-reload-terminal" not in page.text
     pending = list(client.application.state.background_tasks)
     if pending:
         await asyncio.wait_for(asyncio.gather(*pending), timeout=2)

@@ -18,9 +18,11 @@
   <section
     class="panel"
     id="proof-summary"
-    data-poll-url="/partials/proofs/{{ experiment.id }}/summary"
-    data-poll-interval="1500"
-    data-reload-terminal="true"
+    {% if experiment.status.value not in ["ready", "failed"] %}
+      data-poll-url="/partials/proofs/{{ experiment.id }}/summary"
+      data-poll-interval="1500"
+      data-reload-terminal="true"
+    {% endif %}
   >
     {% include "partials/proof_summary.html" %}
   </section>

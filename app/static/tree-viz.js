@@ -40,8 +40,10 @@
       this.counter = root.querySelector("[data-viz-counter]");
       this.stepLabel = root.querySelector("[data-viz-step-label]");
       this.address = root.querySelector("[data-viz-address]");
-      this.inspector = root.querySelector("[data-node-inspector]");
+      this.inspectorContent = root.querySelector("[data-node-inspector-content]");
+      this.clearNodeButton = root.querySelector("[data-node-clear]");
       this.currentStep = 0;
+      this.selectedNodeId = null;
       this.timer = null;
       this.transform = { x: 0, y: 0, scale: 1 };
       this.drag = null;
@@ -217,6 +219,14 @@
         this.transform = { x: 0, y: 0, scale: 1 };
         this.applyTransform();
       });
+      this.clearNodeButton.addEventListener("click", () => {
+        this.clearNodeSelection();
+      });
+      this.root.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && this.selectedNodeId) {
+          this.clearNodeSelection();
+        }
+      });
 
       this.svg.addEventListener(
         "wheel",
@@ -324,7 +334,8 @@
     }
 
     inspectNode(node) {
-      this.inspector.innerHTML = "";
+      this.selectedNodeId = node.id;
+      this.clearNodeButton.hidden = false;
       const eyebrow = document.createElement("p");
       eyebrow.className = "eyebrow";
       eyebrow.textContent = "Selected node";
@@ -349,9 +360,26 @@
         row.append(term, detail);
         list.append(row);
       });
-      this.inspector.append(eyebrow, heading, list);
+      this.inspectorContent.replaceChildren(eyebrow, heading, list);
       this.nodeElements.forEach((element, id) => {
         element.classList.toggle("is-selected", id === node.id);
+      });
+    }
+
+    clearNodeSelection() {
+      this.selectedNodeId = null;
+      this.clearNodeButton.hidden = true;
+      const eyebrow = document.createElement("p");
+      eyebrow.className = "eyebrow";
+      eyebrow.textContent = "Selection";
+      const heading = document.createElement("h3");
+      heading.textContent = "Choose a node";
+      const guidance = document.createElement("p");
+      guidance.textContent =
+        "Click any visible node to inspect its hash, type, path, and RLP size.";
+      this.inspectorContent.replaceChildren(eyebrow, heading, guidance);
+      this.nodeElements.forEach((element) => {
+        element.classList.remove("is-selected");
       });
     }
   }
